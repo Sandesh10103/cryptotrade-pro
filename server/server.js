@@ -9,7 +9,6 @@ const axios = require('axios');
 const crypto = require('crypto');
 
 const app = express();
-// Use environment variable for PORT (Render sets this automatically)
 const PORT = process.env.PORT || 5000;
 
 app.use(cors());
@@ -43,7 +42,6 @@ const withdrawals = [];
 const onlineUsers = new Map();
 const referralTransactions = [];
 
-// Use environment variable for JWT_SECRET in production
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_change_this';
 const SALT_ROUNDS = 10;
 const POINTS_TO_DOLLAR_RATE = 100;
@@ -205,10 +203,18 @@ loadReferrals();
 
 app.use('/uploads', express.static(uploadDir));
 
-// ============ HEALTH CHECK ENDPOINT (ADD THIS - Required for Render) ============
+// Serve static files from client directory
+app.use(express.static(path.join(__dirname, 'client')));
+
+// Root route - serve index.html
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+});
+
+// Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'OK', 
+    res.json({
+        status: 'OK',
         timestamp: new Date().toISOString(),
         users: users.length,
         trades: trades.length
@@ -311,10 +317,7 @@ app.get('/api/referral/stats', async (req, res) => {
         const referredUsers = users.filter(u => u.referredBy === userId);
         const completedReferrals = referredUsers.filter(u => u.referralBonusGiven === true);
         
-        // Get host dynamically for Render compatibility
-        const host = req.get('host');
-        const protocol = req.protocol;
-        const inviteLink = `${protocol}://${host}/signup?ref=${user.referralCode}`;
+        const inviteLink = `${req.protocol}://${req.get('host')}/signup?ref=${user.referralCode}`;
         
         res.json({
             success: true,
@@ -844,7 +847,7 @@ app.post('/api/user/verify-pin', async (req, res) => {
     }
 });
 
-// ============ TRADE ENDPOINT - COMPLETELY FIXED ============
+// ============ TRADE ENDPOINT ============
 
 app.post('/api/trade', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -861,13 +864,6 @@ app.post('/api/trade', async (req, res) => {
         }
         
         const { amount, direction, pin, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
-        
-        // Log received data for debugging
-        console.log('📥 Received trade request:', {
-            amount, direction, crypto, duration,
-            won: won, wonType: typeof won,
-            priceAtTrade, exitPrice
-        });
         
         // Validate required fields
         if (!amount || !direction || !pin || !crypto) {
@@ -893,7 +889,7 @@ app.post('/api/trade', async (req, res) => {
             });
         }
         
-        // Determine win/loss (handle various formats of 'won')
+        // Determine win/loss
         let isWin = false;
         if (won === true || won === 'true' || won === 1 || won === '1') {
             isWin = true;
@@ -1180,10 +1176,7 @@ app.post('/api/upload-image', upload.single('image'), async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = users.find(u => u.id === decoded.userId);
         if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-        // Use dynamic host for Render compatibility
-        const host = req.get('host');
-        const protocol = req.protocol;
-        const imageUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
         const imageMessage = {
             id: messages.length + 1,
             userId: decoded.userId,
