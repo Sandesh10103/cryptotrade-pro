@@ -857,7 +857,7 @@ app.post('/api/user/verify-pin', async (req, res) => {
     }
 });
 
-// ============ TRADE ENDPOINT - COMPLETELY FIXED ============
+// ============ TRADE ENDPOINT - PIN COMPLETELY REMOVED ============
 
 app.post('/api/trade', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -873,7 +873,7 @@ app.post('/api/trade', async (req, res) => {
             return res.status(404).json({ message: 'User not found' });
         }
         
-        const { amount, direction, pin, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
+        const { amount, direction, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
         
         // Log received data for debugging
         console.log('📥 Received trade request:', {
@@ -882,16 +882,9 @@ app.post('/api/trade', async (req, res) => {
             priceAtTrade, exitPrice
         });
         
-        // Validate required fields
-        if (!amount || !direction || !pin || !crypto) {
+        // Validate required fields (PIN no longer required)
+        if (!amount || !direction || !crypto) {
             return res.status(400).json({ message: 'Missing required trade fields' });
-        }
-        
-        // Verify PIN
-        const validPin = await bcrypt.compare(pin.toString(), user.withdrawPin);
-        if (!validPin) {
-            console.log('❌ Invalid PIN for user:', user.email);
-            return res.status(400).json({ message: 'Invalid PIN' });
         }
         
         const currentMode = user.activeMode || 'demo';
@@ -1193,7 +1186,7 @@ app.post('/api/upload-image', upload.single('image'), async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = users.find(u => u.id === decoded.userId);
         if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-        const imageUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
         const imageMessage = {
             id: messages.length + 1,
             userId: decoded.userId,
@@ -1646,6 +1639,26 @@ app.get('/api/transactions', async (req, res) => {
     } catch (error) {
         console.error('Error fetching transactions:', error);
         res.status(401).json({ message: 'Invalid token' });
+    }
+});
+
+// Add this endpoint for invite link
+app.get('/api/referral/invite-link', async (req, res) => {
+    try {
+        const token = req.headers.authorization?.split(' ')[1];
+        if (!token) return res.status(401).json({ message: 'No token' });
+        
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const user = users.find(u => u.id === decoded.userId);
+        
+        if (!user) {
+            return res.status(404).json({ success: false, message: 'User not found' });
+        }
+        
+        const inviteLink = `${req.protocol}://${req.get('host')}/index.html?ref=${user.referralCode}`;
+        res.json({ success: true, invite_link: inviteLink });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
     }
 });
 

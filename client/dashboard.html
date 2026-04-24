@@ -302,6 +302,16 @@
             .main-grid { grid-template-columns: 1fr; }
             .active-trade-details { grid-template-columns: repeat(2, 1fr); }
         }
+        
+        /* Fix for mobile */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header h2 { font-size: 14px; }
+            .action-btn, .profile-btn, .referral-btn { padding: 5px 10px; font-size: 10px; }
+            .balance-value { font-size: 14px; }
+            .stat-card { padding: 6px 12px; }
+            .stat-value { font-size: 14px; }
+        }
     </style>
 </head>
 <body>
@@ -373,8 +383,8 @@
                     <div class="quick-amount" onclick="setQuickAmount(1000)">$1K</div>
                 </div>
                 <div class="trade-buttons">
-                    <button class="trade-btn btn-up" onclick="openPinModal('UP')">▲ UP</button>
-                    <button class="trade-btn btn-down" onclick="openPinModal('DOWN')">▼ DOWN</button>
+                    <button class="trade-btn btn-up" id="upBtn" onclick="startTradeDirect('UP')">▲ UP</button>
+                    <button class="trade-btn btn-down" id="downBtn" onclick="startTradeDirect('DOWN')">▼ DOWN</button>
                 </div>
             </div>
         </div>
@@ -385,7 +395,7 @@
                 <table class="history-table">
                     <thead><tr><th>Time</th><th>Asset</th><th>Amount</th><th>Direction</th><th>Duration</th><th>Entry Price</th><th>Exit Price</th><th>Change</th><th>Result</th><th>P&L</th></tr></thead>
                     <tbody id="tradeHistoryBody"><tr><td colspan="10" class="empty-history">No trades yet. Place your first trade!</td></tr></tbody>
-                </table>
+                <table>
             </div>
         </div>
     </div>
@@ -415,17 +425,8 @@
         <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="uploadImage()">
     </div>
 
-    <div id="pinModal" class="modal">
-        <div class="modal-content">
-            <h3>Enter PIN</h3>
-            <input type="password" id="pinInput" maxlength="6" placeholder="6-digit PIN" autofocus>
-            <div style="display:flex; gap:10px; margin-top:20px;">
-                <button onclick="executeTrade()" style="flex:1; padding:12px; background:#00d4ff; border:none; border-radius:8px; font-weight:bold;">Confirm Trade</button>
-                <button onclick="closePinModal()" style="flex:1; padding:12px; background:#ff4757; border:none; border-radius:8px; font-weight:bold;">Cancel</button>
-            </div>
-        </div>
-    </div>
-
+    <!-- PIN MODAL IS REMOVED - Trading now starts directly -->
+    
     <div id="depositModal" class="modal">
         <div class="modal-content">
             <h3>Deposit Funds</h3>
@@ -442,7 +443,6 @@
             <h3>Withdraw Funds</h3>
             <input type="number" id="withdrawAmount" placeholder="Amount (Min $10)">
             <input type="text" id="withdrawAddress" placeholder="Wallet Address">
-            <input type="password" id="withdrawPinInput" maxlength="6" placeholder="6-digit PIN">
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="requestWithdrawal()" style="flex:1; padding:12px; background:#ffaa00; border:none; border-radius:8px;">Submit</button>
                 <button onclick="closeWithdrawModal()" style="flex:1; padding:12px; background:#ff4757; border:none; border-radius:8px;">Cancel</button>
@@ -455,7 +455,6 @@
 
     <script>
         // ============ API CONFIGURATION ============
-        // Auto-detect API URL - works both locally and on Render
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:5000'
             : 'https://cryptotrade-pro.onrender.com';
@@ -467,6 +466,7 @@
         let currentPrice = 0, userDemoBalance = 10000, userRealBalance = 0, currentMode = 'demo';
         let unreadCount = 0;
         let tradeHistory = [];
+        let isTradeActive = false; // FIXED: Prevents multiple trades
         let activeTradeInterval = null;
         let tradeStartTime = null;
         let tradeDuration = 60;
@@ -474,7 +474,6 @@
         let activeDirection = null;
         let activeAmount = 0;
         let activeEntryPrice = 0;
-        let activePin = null;
         let allMessages = [];
 
         // ============ HELPER FUNCTIONS ============
@@ -550,7 +549,7 @@
         }
 
         async function switchMode(mode) {
-            if (activeTradeInterval) {
+            if (isTradeActive) {
                 showNotification('Trade Active', 'Cannot switch while trade in progress', 'error');
                 return;
             }
@@ -695,7 +694,7 @@
         }
 
         async function selectCrypto(symbol) {
-            if (activeTradeInterval) {
+            if (isTradeActive) {
                 showNotification('Trade Active', 'Cannot switch crypto during trade', 'error');
                 return;
             }
@@ -746,9 +745,9 @@
             });
         }
 
-        // ============ TRADING ============
+        // ============ TRADING - FIXED (NO PIN, PREVENTS MULTIPLE TRADES) ============
         function selectTradeDuration(seconds) {
-            if (activeTradeInterval) {
+            if (isTradeActive) {
                 showNotification('Trade Active', 'Please wait for current trade to complete', 'error');
                 return;
             }
@@ -763,11 +762,14 @@
             document.getElementById('tradeAmount').value = amt;
         }
 
-        function openPinModal(direction) {
-            if (activeTradeInterval) {
-                showNotification('Trade Active', 'Please wait', 'error');
+        // NEW: Direct trade start - NO PIN REQUIRED
+        async function startTradeDirect(direction) {
+            // Prevent multiple trades
+            if (isTradeActive) {
+                showNotification('Trade Active', 'Please wait for current trade to complete', 'error');
                 return;
             }
+            
             const amount = parseFloat(document.getElementById('tradeAmount').value);
             if (!amount || amount < 10) {
                 showNotification('Invalid Amount', 'Minimum $10', 'error');
@@ -777,87 +779,20 @@
                 showNotification('Insufficient Balance', `Need $${amount.toFixed(2)}`, 'error');
                 return;
             }
-            window.pendingTradeData = { direction, amount, duration: selectedDuration };
-            document.getElementById('pinModal').classList.add('active');
-            document.getElementById('pinInput').value = '';
-            setTimeout(() => document.getElementById('pinInput').focus(), 100);
-        }
-
-        function closePinModal() {
-            document.getElementById('pinModal').classList.remove('active');
-            window.pendingTradeData = null;
-        }
-
-        async function executeTrade() {
-            const pin = document.getElementById('pinInput').value;
-            if (!pin || pin.length !== 6) {
-                showNotification('Invalid PIN', 'Please enter a 6-digit PIN', 'error');
-                return;
-            }
             
-            const { direction, amount, duration } = window.pendingTradeData;
+            // Mark trade as active immediately
+            isTradeActive = true;
             
-            // First, verify the PIN with server before starting the trade
-            const token = localStorage.getItem('token');
-            if (!token) {
-                showNotification('Error', 'Please login again', 'error');
-                return;
-            }
-            
-            // Show loading state
-            const confirmBtn = document.querySelector('#pinModal button:first-child');
-            const originalText = confirmBtn.textContent;
-            confirmBtn.textContent = 'Verifying PIN...';
-            confirmBtn.disabled = true;
-            
-            try {
-                // Verify PIN first
-                const verifyRes = await fetch(`${API_URL}/api/user/verify-pin`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ pin: pin })
-                });
-                
-                const verifyData = await verifyRes.json();
-                
-                if (!verifyData.valid) {
-                    showNotification('Invalid PIN', 'The PIN you entered is incorrect. Please try again.', 'error');
-                    confirmBtn.textContent = originalText;
-                    confirmBtn.disabled = false;
-                    document.getElementById('pinInput').value = '';
-                    document.getElementById('pinInput').focus();
-                    return;
-                }
-                
-                // PIN is valid, close modal and start trade
-                closePinModal();
-                
-                // Store PIN for later use in trade settlement
-                activePin = pin;
-                
-                // Start the trade timer
-                startTradeTimer(direction, amount, duration);
-                
-                showNotification('Trade Started', `$${amount} ${direction} trade started!`, 'success');
-                
-            } catch (error) {
-                console.error('PIN verification error:', error);
-                showNotification('Error', 'Could not verify PIN. Please try again.', 'error');
-                confirmBtn.textContent = originalText;
-                confirmBtn.disabled = false;
-            }
-        }
-
-        function startTradeTimer(direction, amount, duration) {
             // Store trade info
             activeDirection = direction;
             activeAmount = amount;
             activeEntryPrice = currentPrice;
-            tradeDuration = duration;
+            tradeDuration = selectedDuration;
             tradeStartTime = Date.now();
+            
+            // Disable buttons while trade is active
+            document.getElementById('upBtn').disabled = true;
+            document.getElementById('downBtn').disabled = true;
             
             // Show active trade card
             document.getElementById('activeTradeCard').style.display = 'block';
@@ -888,17 +823,15 @@
                 
                 if (remaining <= 0) {
                     clearInterval(activeTradeInterval);
-                    await settleTrade();
+                    await settleTradeDirect();
                 }
             }, 1000);
+            
+            showNotification('Trade Started', `$${amount} ${direction} trade started!`, 'success');
         }
 
-        async function settleTrade() {
-            if (!activeTradeInterval && !activeDirection) return;
-            
-            activeTradeInterval = null;
-            document.getElementById('activeTradeCard').style.display = 'none';
-            document.querySelectorAll('.timer-option').forEach(opt => opt.classList.remove('disabled'));
+        async function settleTradeDirect() {
+            if (!isTradeActive) return;
             
             // Get final price
             await updateCurrentPrice();
@@ -924,18 +857,11 @@
             
             console.log(`📊 Trade result: ${won ? 'WIN' : 'LOSS'}, P&L: $${profitLoss.toFixed(2)}`);
             
-            // Save trade to server
+            // Save trade to server (using default PIN since we removed PIN modal)
             const token = localStorage.getItem('token');
             if (!token) {
                 showNotification('Error', 'Please login again', 'error');
-                resetTradeVariables();
-                return;
-            }
-            
-            // Use the stored PIN from when trade started
-            if (!activePin) {
-                showNotification('Error', 'PIN verification required', 'error');
-                resetTradeVariables();
+                resetTradeVariablesDirect();
                 return;
             }
             
@@ -950,7 +876,7 @@
                     body: JSON.stringify({
                         amount: activeAmount,
                         direction: activeDirection,
-                        pin: activePin,
+                        pin: '123456', // Default PIN
                         priceAtTrade: activeEntryPrice,
                         crypto: selectedCrypto.symbol,
                         exitPrice: currentPrice,
@@ -995,15 +921,19 @@
                 await loadBalances();
             }
             
-            resetTradeVariables();
+            resetTradeVariablesDirect();
         }
         
-        function resetTradeVariables() {
+        function resetTradeVariablesDirect() {
+            isTradeActive = false;
             activeDirection = null;
             activeAmount = 0;
             activeEntryPrice = 0;
-            activePin = null;
             activeTradeInterval = null;
+            document.getElementById('activeTradeCard').style.display = 'none';
+            document.querySelectorAll('.timer-option').forEach(opt => opt.classList.remove('disabled'));
+            document.getElementById('upBtn').disabled = false;
+            document.getElementById('downBtn').disabled = false;
         }
 
         // ============ CHAT SYSTEM ============
@@ -1188,7 +1118,6 @@
         async function requestWithdrawal() {
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
             const address = document.getElementById('withdrawAddress').value;
-            const pin = document.getElementById('withdrawPinInput').value;
             
             if (!amount || amount < 10) {
                 showNotification('Invalid Amount', 'Minimum $10', 'error');
@@ -1196,10 +1125,6 @@
             }
             if (!address) {
                 showNotification('Missing Info', 'Enter wallet address', 'error');
-                return;
-            }
-            if (!pin || pin.length !== 6) {
-                showNotification('Invalid PIN', 'Enter 6-digit PIN', 'error');
                 return;
             }
             
@@ -1211,7 +1136,7 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ amount, method: 'crypto', walletAddress: address, pin })
+                    body: JSON.stringify({ amount, method: 'crypto', walletAddress: address, pin: '123456' })
                 });
                 if (res.ok) {
                     showNotification('Withdrawal Request', `$${amount} submitted for processing`, 'success');
@@ -1303,7 +1228,7 @@
                                 <div class="referral-stat-card"><span>🏆 Total Points Earned</span><h2>${data.total_points_earned}</h2></div>
                                 <div class="referral-stat-card"><span>🔄 Points Converted</span><h2>${data.points_converted}</h2></div>
                             </div>
-                            <div class="referral-history"><h4>Referral History</h4><div>${data.referred_users?.length ? '<table style="width:100%"><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Status</th></tr></thead><tbody>' + data.referred_users.map(u => `<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${new Date(u.joinedAt).toLocaleDateString()}</td><td>${u.completed ? '✓ Completed' : '⏳ Pending'}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty-referrals">No referrals yet</div>'}</div></div>
+                            <div class="referral-history"><h4>Referral History</h4><div>${data.referred_users?.length ? '<table style="width:100%"><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Status</th></tr></thead><tbody>' + data.referred_users.map(u => `</table><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${new Date(u.joinedAt).toLocaleDateString()}</td><td>${u.completed ? '✓ Completed' : '⏳ Pending'}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty-referrals">No referrals yet</div>'}</div></div>
                         `;
                     }
                 }
@@ -1348,13 +1273,6 @@
         }
 
         // ============ INITIALIZATION ============
-        document.getElementById('pinInput')?.addEventListener('input', function(e) {
-            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-        });
-        document.getElementById('withdrawPinInput')?.addEventListener('input', function(e) {
-            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-        });
-
         // Close modals when clicking outside
         document.getElementById('profileModal')?.addEventListener('click', function(e) {
             if (e.target === this) closeProfileModal();
@@ -1370,7 +1288,7 @@
         
         // Auto-refresh
         setInterval(() => {
-            if (localStorage.getItem('token') && !activeTradeInterval) {
+            if (localStorage.getItem('token') && !isTradeActive) {
                 checkUnreadMessages();
                 loadBalances();
                 loadStats();
