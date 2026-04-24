@@ -204,14 +204,11 @@ loadReferrals();
 app.use('/uploads', express.static(uploadDir));
 
 // ============ STATIC FILE SERVING FOR RENDER ============
-// The client folder is one level UP from the server folder
 const clientPath = path.join(__dirname, '..', 'client');
 console.log('📁 Serving static files from:', clientPath);
 
-// Serve static files from client directory
 app.use(express.static(clientPath));
 
-// Root route - serve index.html
 app.get('/', (req, res) => {
     const indexPath = path.join(clientPath, 'index.html');
     if (fs.existsSync(indexPath)) {
@@ -221,7 +218,6 @@ app.get('/', (req, res) => {
     }
 });
 
-// Health check endpoint
 app.get('/health', (req, res) => {
     res.json({
         status: 'OK',
@@ -305,7 +301,6 @@ function generateReferralCode(userId, email) {
     return hash;
 }
 
-// Get referral stats
 app.get('/api/referral/stats', async (req, res) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];
@@ -325,7 +320,6 @@ app.get('/api/referral/stats', async (req, res) => {
         }
         
         const referredUsers = users.filter(u => u.referredBy === userId);
-        const completedReferrals = referredUsers.filter(u => u.referralBonusGiven === true);
         
         const inviteLink = `${req.protocol}://${req.get('host')}/signup?ref=${user.referralCode}`;
         
@@ -539,27 +533,34 @@ app.post('/api/signup', async (req, res) => {
     users.push(newUser);
     newUser.referralCode = generateReferralCode(newUser.id, newUser.email);
     
+    // NEW REFERRAL SYSTEM: 50 points on signup for BOTH
     if (referralValid && referrerId) {
         const referrer = users.find(u => u.id === referrerId);
         if (referrer) {
             referrer.totalReferrals = (referrer.totalReferrals || 0) + 1;
             referrer.pendingReferrals = (referrer.pendingReferrals || 0) + 1;
             
+            // Give referrer 50 points immediately
+            referrer.referralPoints = (referrer.referralPoints || 0) + 50;
+            referrer.totalPointsEarned = (referrer.totalPointsEarned || 0) + 50;
+            
             messages.push({
                 id: messages.length + 1,
                 userId: referrer.id,
                 userName: 'System',
-                text: `🎉 ${name} signed up using your referral code! They will receive 50 points, and you'll get 100 points after their first trade!`,
+                text: `🎉 ${name} signed up using your referral code! You earned 50 points! You'll get another 50 points when they complete their first REAL trade!`,
                 sender: 'admin',
                 timestamp: new Date().toISOString(),
                 read: false,
                 adminRead: true
             });
             saveMessages();
+            saveUsers();
         }
     }
     
     if (referralValid) {
+        // Give new user 50 points immediately
         newUser.referralPoints = 50;
         newUser.totalPointsEarned = 50;
         
@@ -567,7 +568,7 @@ app.post('/api/signup', async (req, res) => {
             id: messages.length + 1,
             userId: newUser.id,
             userName: 'System',
-            text: `🎉 Welcome! You've received 50 referral bonus points! Invite friends to earn more points!`,
+            text: `🎉 Welcome! You've received 50 referral bonus points! You'll get another 50 points when you complete your first REAL trade!`,
             sender: 'admin',
             timestamp: new Date().toISOString(),
             read: false,
@@ -857,7 +858,7 @@ app.post('/api/user/verify-pin', async (req, res) => {
     }
 });
 
-// ============ TRADE ENDPOINT - PIN COMPLETELY REMOVED ============
+// ============ TRADE ENDPOINT - NO PIN REQUIRED ============
 
 app.post('/api/trade', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -875,14 +876,12 @@ app.post('/api/trade', async (req, res) => {
         
         const { amount, direction, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
         
-        // Log received data for debugging
         console.log('📥 Received trade request:', {
             amount, direction, crypto, duration,
             won: won, wonType: typeof won,
             priceAtTrade, exitPrice
         });
         
-        // Validate required fields (PIN no longer required)
         if (!amount || !direction || !crypto) {
             return res.status(400).json({ message: 'Missing required trade fields' });
         }
@@ -890,7 +889,6 @@ app.post('/api/trade', async (req, res) => {
         const currentMode = user.activeMode || 'demo';
         let currentBalance = currentMode === 'demo' ? user.demoBalance : user.realBalance;
         
-        // Check sufficient balance
         if (amount > currentBalance) {
             return res.status(400).json({ 
                 message: 'Insufficient balance', 
@@ -899,13 +897,11 @@ app.post('/api/trade', async (req, res) => {
             });
         }
         
-        // Determine win/loss (handle various formats of 'won')
         let isWin = false;
         if (won === true || won === 'true' || won === 1 || won === '1') {
             isWin = true;
         }
         
-        // Calculate profit/loss
         let balanceChange = 0;
         if (isWin) {
             balanceChange = amount * TRADE_PAYOUT_PERCENTAGE;
@@ -913,7 +909,6 @@ app.post('/api/trade', async (req, res) => {
             balanceChange = -amount;
         }
         
-        // Update user balance
         const oldBalance = currentBalance;
         
         if (currentMode === 'demo') {
@@ -938,7 +933,6 @@ app.post('/api/trade', async (req, res) => {
         
         const newBalance = currentMode === 'demo' ? user.demoBalance : user.realBalance;
         
-        // Create trade record
         const newTrade = {
             id: trades.length + 1,
             userId: user.id,
@@ -961,7 +955,6 @@ app.post('/api/trade', async (req, res) => {
         
         trades.push(newTrade);
         
-        // Save to files
         saveTrades();
         saveUsers();
         
@@ -977,16 +970,17 @@ app.post('/api/trade', async (req, res) => {
         console.log(`   Trade ID: ${newTrade.id}`);
         console.log(`═══════════════════════════════════════════════`);
         
-        // Check for referral bonus on first trade
-        const userTradesCount = trades.filter(t => t.userId === user.id).length;
-        if (userTradesCount === 1 && user.referredBy && !user.referralBonusGiven) {
+        // NEW REFERRAL SYSTEM: Additional 50 points on first REAL trade
+        const userRealTradesCount = trades.filter(t => t.userId === user.id && t.mode === 'real').length;
+        if (userRealTradesCount === 1 && user.referredBy && !user.referralBonusGiven) {
             user.referralBonusGiven = true;
             user.completedReferrals = (user.completedReferrals || 0) + 1;
             
             const referrer = users.find(u => u.id === user.referredBy);
             if (referrer) {
-                referrer.referralPoints = (referrer.referralPoints || 0) + 100;
-                referrer.totalPointsEarned = (referrer.totalPointsEarned || 0) + 100;
+                // Give referrer additional 50 points for first REAL trade
+                referrer.referralPoints = (referrer.referralPoints || 0) + 50;
+                referrer.totalPointsEarned = (referrer.totalPointsEarned || 0) + 50;
                 referrer.completedReferrals = (referrer.completedReferrals || 0) + 1;
                 referrer.pendingReferrals = Math.max(0, (referrer.pendingReferrals || 0) - 1);
                 
@@ -994,7 +988,7 @@ app.post('/api/trade', async (req, res) => {
                     id: messages.length + 1,
                     userId: referrer.id,
                     userName: 'System',
-                    text: `🎉 Your referral ${user.name} completed their first trade! You earned 100 points!`,
+                    text: `🎉 Your referral ${user.name} completed their first REAL trade! You earned 50 additional points! Total earned from this referral: 100 points!`,
                     sender: 'admin',
                     timestamp: new Date().toISOString(),
                     read: false,
@@ -1004,11 +998,16 @@ app.post('/api/trade', async (req, res) => {
                 saveUsers();
             }
             
+            // Give new user additional 50 points for first REAL trade
+            user.referralPoints = (user.referralPoints || 0) + 50;
+            user.totalPointsEarned = (user.totalPointsEarned || 0) + 50;
+            saveUsers();
+            
             messages.push({
                 id: messages.length + 1,
                 userId: user.id,
                 userName: 'System',
-                text: `🎉 Congratulations on your first trade! Keep trading!`,
+                text: `🎉 Congratulations on your first REAL trade! You earned 50 additional points! Total referral points: 100! Keep trading to earn more!`,
                 sender: 'admin',
                 timestamp: new Date().toISOString(),
                 read: false,
@@ -1036,7 +1035,6 @@ app.post('/api/trade', async (req, res) => {
     }
 });
 
-// Get user's trade history
 app.get('/api/trades', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'No token' });
@@ -1052,7 +1050,6 @@ app.get('/api/trades', async (req, res) => {
     }
 });
 
-// Get user statistics
 app.get('/api/stats', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'No token' });
@@ -1083,7 +1080,6 @@ app.get('/api/stats', async (req, res) => {
     }
 });
 
-// Debug endpoint to check user balance and stats
 app.get('/api/debug/user-stats', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return res.status(401).json({ message: 'No token' });
@@ -1262,7 +1258,6 @@ app.post('/api/admin/reply', async (req, res) => {
     res.json({ message: 'Reply sent', data: adminReply });
 });
 
-// Get messages for a specific user (admin endpoint)
 app.get('/api/admin/messages/:userId', async (req, res) => {
     const userId = parseInt(req.params.userId);
     const userMessages = messages.filter(m => m.userId === userId || m.userId === 'admin');
@@ -1270,7 +1265,6 @@ app.get('/api/admin/messages/:userId', async (req, res) => {
     res.json({ messages: userMessages });
 });
 
-// Mark admin as having read user messages
 app.post('/api/messages/mark-admin-read', async (req, res) => {
     const { userId } = req.body;
     
@@ -1475,6 +1469,7 @@ app.post('/api/withdraw/request', async (req, res) => {
         if (!amount || amount < 10) return res.status(400).json({ message: 'Minimum withdrawal is $10' });
         if (amount > 10000) return res.status(400).json({ message: 'Maximum withdrawal is $10,000' });
         if (amount > user.realBalance) return res.status(400).json({ message: 'Insufficient real balance' });
+        if (!walletAddress) return res.status(400).json({ message: 'Wallet address is required' });
         
         const withdrawRequest = {
             id: withdrawals.length + 1,
@@ -1507,7 +1502,8 @@ app.post('/api/withdraw/request', async (req, res) => {
         
         res.json({ message: `Withdrawal request of $${amount} submitted!`, withdrawal: withdrawRequest });
     } catch (error) {
-        res.status(401).json({ message: 'Invalid token' });
+        console.error('Withdrawal error:', error);
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 });
 
@@ -1642,7 +1638,6 @@ app.get('/api/transactions', async (req, res) => {
     }
 });
 
-// Add this endpoint for invite link
 app.get('/api/referral/invite-link', async (req, res) => {
     try {
         const token = req.headers.authorization?.split(' ')[1];
