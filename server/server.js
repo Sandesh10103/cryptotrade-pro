@@ -1787,7 +1787,89 @@ process.on('SIGINT', () => {
     saveReferrals();
     process.exit();
 });
+// ============ DELETE USER ENDPOINT ============
+app.delete('/api/admin/delete-user/:userId', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        
+        // Check if admin (you can add proper admin check)
+        // For now, allow any authenticated user or hardcode email check
+        const adminUser = users.find(u => u.id === decoded.userId);
+        if (!adminUser || adminUser.email !== 'sa@gmail.com') {
+            return res.status(403).json({ message: 'Admin access required' });
+        }
+        
+        const userId = parseInt(req.params.userId);
+        let usersList = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        
+        // Find user to delete
+        const userToDelete = usersList.find(u => u.id === userId);
+        if (!userToDelete) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        // Don't allow deleting the main admin
+        if (userToDelete.email === 'sa@gmail.com') {
+            return res.status(403).json({ message: 'Cannot delete main admin account' });
+        }
+        
+        // Remove user
+        usersList = usersList.filter(u => u.id !== userId);
+        
+        // Reorder IDs
+        usersList = usersList.map((u, index) => ({ ...u, id: index + 1 }));
+        
+        // Save to file
+        fs.writeFileSync(usersFile, JSON.stringify(usersList, null, 2));
+        
+        // Also remove user's trades (optional)
+        let allTrades = [];
+        if (fs.existsSync(tradesFile)) {
+            allTrades = JSON.parse(fs.readFileSync(tradesFile, 'utf8'));
+            allTrades = allTrades.filter(t => t.userId !== userId);
+            fs.writeFileSync(tradesFile, JSON.stringify(allTrades, null, 2));
+        }
+        
+        console.log(`🗑️ User deleted: ${userToDelete.name} (${userToDelete.email})`);
+        
+        res.json({ 
+            success: true, 
+            message: `User ${userToDelete.name} deleted successfully`,
+            remainingUsers: usersList.length
+        });
+        
+    } catch (error) {
+        console.error('Delete user error:', error);
+        res.status(500).json({ message: 'Error deleting user', error: error.message });
+    }
+});
 
+// Get all users with details (for admin)
+app.get('/api/admin/all-users', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const adminUser = users.find(u => u.id === decoded.userId);
+        
+        if (!adminUser || adminUser.email !== 'sa@gmail.com') {
+            return res.status(403).json({ message: 'Admin access required' });
+        }
+        
+        const usersList = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        res.json({ users: usersList });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching users' });
+    }
+});
 // ============ START SERVER ============
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);

@@ -126,12 +126,30 @@
         .user-item {
             padding: 15px; background: rgba(255,255,255,0.03); border-radius: 16px;
             margin-bottom: 10px; cursor: pointer; transition: all 0.3s; border: 1px solid transparent;
+            position: relative;
         }
         .user-item:hover { background: rgba(0,212,255,0.1); transform: translateX(4px); }
         .user-item.active { background: rgba(0,212,255,0.15); border-color: #00d4ff; }
         .user-name { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
         .user-email { font-size: 11px; color: #8a92b0; margin-top: 4px; }
         .user-balance { font-size: 12px; color: #00d4ff; margin-top: 6px; }
+        
+        .delete-user-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,71,87,0.2);
+            border: 1px solid #ff4757;
+            color: #ff4757;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: none;
+        }
+        .user-item:hover .delete-user-btn { display: block; }
+        .delete-user-btn:hover { background: #ff4757; color: white; }
         
         .status-indicator {
             display: inline-flex;
@@ -213,6 +231,7 @@
         .chat-input-area input {
             flex: 1; padding: 14px 18px; background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1); border-radius: 40px; color: white; font-size: 14px;
+            outline: none;
         }
         .chat-input-area input:focus { outline: none; border-color: #00d4ff; }
         .chat-input-area button {
@@ -288,11 +307,62 @@
             color: white;
         }
         
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 3000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a1a3e;
+            padding: 30px;
+            border-radius: 16px;
+            text-align: center;
+            max-width: 400px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-content h3 {
+            margin-bottom: 15px;
+            color: #ff4757;
+        }
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: center;
+        }
+        .confirm-btn { background: #ff4757; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        .cancel-btn { background: #8a92b0; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
+        
         .users-list::-webkit-scrollbar, .chat-messages::-webkit-scrollbar { width: 4px; }
         .users-list::-webkit-scrollbar-track, .chat-messages::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
         .users-list::-webkit-scrollbar-thumb, .chat-messages::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 4px; }
         
         @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; height: auto; } }
+        
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #00e676;
+            color: #000;
+            padding: 12px 24px;
+            border-radius: 8px;
+            display: none;
+            z-index: 4000;
+            animation: slideIn 0.3s ease;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
     </style>
 </head>
 <body>
@@ -357,14 +427,26 @@
         </div>
     </div>
 
+    <div id="deleteModal" class="modal">
+        <div class="modal-content">
+            <h3><i class="fas fa-exclamation-triangle"></i> Confirm Delete</h3>
+            <p id="deleteMessage">Are you sure you want to delete this user?</p>
+            <p style="font-size: 12px; color: #ff4757; margin-top: 10px;">This action cannot be undone!</p>
+            <div class="modal-buttons">
+                <button class="confirm-btn" onclick="confirmDeleteUser()">Delete</button>
+                <button class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <div id="imageViewer" class="image-viewer" onclick="closeImageViewer()">
         <span class="close-viewer" onclick="closeImageViewer()">&times;</span>
         <img id="viewerImg" src="">
     </div>
+    
+    <div id="toast" class="toast"></div>
 
     <script>
-        // ============ API CONFIGURATION ============
-        // Auto-detect API URL - works both locally and on Render
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:5000'
             : 'https://cryptotrade-pro.onrender.com';
@@ -381,26 +463,30 @@
         let totalUnreadMessages = 0;
         let pendingDepositsCount = 0;
         let pendingWithdrawalsCount = 0;
+        let deleteTarget = null;
+        
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('toast');
+            toast.style.backgroundColor = isError ? '#ff4757' : '#00e676';
+            toast.style.color = 'white';
+            toast.innerHTML = message;
+            toast.style.display = 'block';
+            setTimeout(() => { toast.style.display = 'none'; }, 3000);
+        }
         
         function checkAdmin() {
-            if (!localStorage.getItem('isAdmin')) {
+            if (!localStorage.getItem('isAdmin') && !localStorage.getItem('token')) {
                 window.location.href = 'admin-login.html';
             }
         }
         
-        // Helper function to fix image URL
         function fixImageUrl(url) {
             if (!url) return '';
-            // If it's already a full URL, return as is
-            if (url.startsWith('http://') || url.startsWith('https://')) {
-                return url;
-            }
-            // Remove leading slashes and add server URL
+            if (url.startsWith('http://') || url.startsWith('https://')) return url;
             const cleanUrl = url.replace(/^\/+/, '');
             return `${API_URL}/${cleanUrl}`;
         }
         
-        // Image preview functions
         function cancelImage() {
             document.getElementById('imagePreview').style.display = 'none';
             document.getElementById('fileInput').value = '';
@@ -420,17 +506,17 @@
             const file = fileInput.files[0];
             
             if (!file || !selectedUserId) {
-                if (!selectedUserId) alert('Please select a user first');
+                if (!selectedUserId) showToast('Please select a user first', true);
                 return;
             }
             
             if (!file.type.startsWith('image/')) {
-                alert('Please select an image file');
+                showToast('Please select an image file', true);
                 return;
             }
             
             if (file.size > 5 * 1024 * 1024) {
-                alert('Image too large. Max 5MB');
+                showToast('Image too large. Max 5MB', true);
                 return;
             }
             
@@ -449,27 +535,23 @@
                     const data = await response.json();
                     const imageUrl = fixImageUrl(data.imageUrl);
                     
-                    // Send image as message
                     await fetch(`${API_URL}/api/admin/reply`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            userId: selectedUserId, 
-                            text: imageUrl,
-                            adminName: 'Support' 
-                        })
+                        body: JSON.stringify({ userId: selectedUserId, text: imageUrl, adminName: 'Admin' })
                     });
                     
                     cancelImage();
                     await loadUserMessages(selectedUserId);
                     await loadUnreadCounts();
                     applyFilters();
+                    showToast('Image sent successfully!');
                 } else {
-                    alert('Upload failed');
+                    showToast('Upload failed', true);
                 }
             } catch (error) {
                 console.error('Error uploading image:', error);
-                alert('Error uploading image');
+                showToast('Error uploading image', true);
             }
         }
         
@@ -479,19 +561,14 @@
                 if (response.ok) {
                     const data = await response.json();
                     allUsers = data.users || [];
-                    console.log('Users loaded:', allUsers.length);
                 } else {
                     const fallbackRes = await fetch(`${API_URL}/api/admin/users`);
                     if (fallbackRes.ok) {
                         const fallbackData = await fallbackRes.json();
                         allUsers = fallbackData.users || [];
-                        allUsers.forEach(user => {
-                            user.status = 'offline';
-                            user.lastSeen = new Date().toISOString();
-                        });
+                        allUsers.forEach(user => { user.status = 'offline'; user.lastSeen = new Date().toISOString(); });
                     }
                 }
-                
                 await loadUnreadCounts();
                 applyFilters();
             } catch (error) {
@@ -504,7 +581,6 @@
             try {
                 totalUnreadMessages = 0;
                 unreadCounts = {};
-                
                 for (const user of allUsers) {
                     try {
                         const response = await fetch(`${API_URL}/api/admin/messages/${user.id}`);
@@ -517,14 +593,10 @@
                                 totalUnreadMessages += unreadCount;
                             }
                         }
-                    } catch (e) {
-                        console.error(`Error for user ${user.id}:`, e);
-                    }
+                    } catch (e) { console.error(`Error for user ${user.id}:`, e); }
                 }
                 updateChatBadge();
-            } catch (error) {
-                console.error('Error loading unread counts:', error);
-            }
+            } catch (error) { console.error('Error loading unread counts:', error); }
         }
         
         async function checkPendingDeposits() {
@@ -539,9 +611,7 @@
                         if (pendingDepositsCount > 0) {
                             badge.style.display = 'flex';
                             badge.innerText = pendingDepositsCount > 99 ? '99+' : pendingDepositsCount;
-                        } else {
-                            badge.style.display = 'none';
-                        }
+                        } else { badge.style.display = 'none'; }
                     }
                 }
             } catch (error) { console.error('Error checking deposits:', error); }
@@ -559,9 +629,7 @@
                         if (pendingWithdrawalsCount > 0) {
                             badge.style.display = 'flex';
                             badge.innerText = pendingWithdrawalsCount > 99 ? '99+' : pendingWithdrawalsCount;
-                        } else {
-                            badge.style.display = 'none';
-                        }
+                        } else { badge.style.display = 'none'; }
                     }
                 }
             } catch (error) { console.error('Error checking withdrawals:', error); }
@@ -583,23 +651,13 @@
         
         function applyFilters() {
             let filtered = [...allUsers];
-            
             if (currentSearchTerm) {
                 const term = currentSearchTerm.toLowerCase();
-                filtered = filtered.filter(user => 
-                    user.name.toLowerCase().includes(term) || 
-                    user.email.toLowerCase().includes(term)
-                );
+                filtered = filtered.filter(user => user.name.toLowerCase().includes(term) || user.email.toLowerCase().includes(term));
             }
-            
-            if (currentFilter === 'online') {
-                filtered = filtered.filter(user => user.status === 'online');
-            } else if (currentFilter === 'offline') {
-                filtered = filtered.filter(user => user.status === 'offline');
-            } else if (currentFilter === 'unread') {
-                filtered = filtered.filter(user => (unreadCounts[user.id] || 0) > 0);
-            }
-            
+            if (currentFilter === 'online') filtered = filtered.filter(user => user.status === 'online');
+            else if (currentFilter === 'offline') filtered = filtered.filter(user => user.status === 'offline');
+            else if (currentFilter === 'unread') filtered = filtered.filter(user => (unreadCounts[user.id] || 0) > 0);
             filteredUsers = filtered;
             displayUsers();
         }
@@ -615,26 +673,59 @@
         function filterUsers() {
             currentSearchTerm = document.getElementById('searchInput').value;
             const clearBtn = document.getElementById('clearSearch');
-            if (clearBtn) {
-                clearBtn.style.display = currentSearchTerm ? 'block' : 'none';
-            }
+            if (clearBtn) clearBtn.style.display = currentSearchTerm ? 'block' : 'none';
             applyFilters();
         }
         
         function clearSearch() {
-            const searchInput = document.getElementById('searchInput');
-            if (searchInput) searchInput.value = '';
+            document.getElementById('searchInput').value = '';
             currentSearchTerm = '';
-            const clearBtn = document.getElementById('clearSearch');
-            if (clearBtn) clearBtn.style.display = 'none';
+            document.getElementById('clearSearch').style.display = 'none';
             applyFilters();
+        }
+        
+        function showDeleteModal(userId, userName, userEmail) {
+            if (userEmail === 'sa@gmail.com') {
+                showToast('Cannot delete main admin account!', true);
+                return;
+            }
+            deleteTarget = { id: userId, name: userName };
+            document.getElementById('deleteMessage').innerHTML = `Are you sure you want to delete user "<strong>${escapeHtml(userName)}</strong>"?`;
+            document.getElementById('deleteModal').classList.add('active');
+        }
+        
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.remove('active');
+            deleteTarget = null;
+        }
+        
+        async function confirmDeleteUser() {
+            if (!deleteTarget) return;
+            try {
+                const response = await fetch(`${API_URL}/api/admin/delete-user/${deleteTarget.id}`, { method: 'DELETE' });
+                const result = await response.json();
+                if (response.ok) {
+                    showToast(`✅ ${result.message}`);
+                    allUsers = allUsers.filter(u => u.id !== deleteTarget.id);
+                    if (selectedUserId === deleteTarget.id) {
+                        selectedUserId = null;
+                        selectedUserName = null;
+                        document.getElementById('selectedUserName').innerHTML = 'Select a user';
+                        document.getElementById('chatMessages').innerHTML = '<div class="no-user-selected"><i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i><p>Select a user to start chatting</p></div>';
+                    }
+                    applyFilters();
+                    await loadUnreadCounts();
+                } else { showToast(`❌ Error: ${result.message}`, true); }
+            } catch (error) {
+                console.error('Delete error:', error);
+                showToast('Error deleting user', true);
+            }
+            closeDeleteModal();
         }
         
         function displayUsers() {
             const usersDiv = document.getElementById('usersList');
-            
             if (!usersDiv) return;
-            
             if (filteredUsers.length === 0) {
                 let msg = 'No users found';
                 if (currentFilter === 'online') msg = 'No online users';
@@ -643,16 +734,16 @@
                 usersDiv.innerHTML = `<div class="empty-state"><i class="fas fa-user-slash"></i><p>${msg}</p></div>`;
                 return;
             }
-            
             usersDiv.innerHTML = filteredUsers.map(user => {
                 const unread = unreadCounts[user.id] || 0;
                 const isOnline = user.status === 'online';
                 const lastSeen = user.lastSeen ? new Date(user.lastSeen).toLocaleString() : 'Never';
-                
+                const isMainAdmin = user.email === 'sa@gmail.com';
                 return `
                     <div class="user-item ${selectedUserId === user.id ? 'active' : ''}" onclick="selectUser(${user.id}, '${escapeHtml(user.name)}')">
                         <div class="user-name">
-                            <i class="fas fa-user-circle"></i> ${escapeHtml(user.name)}
+                            <i class="fas ${isMainAdmin ? 'fa-crown' : 'fa-user-circle'}"></i> ${escapeHtml(user.name)}
+                            ${isMainAdmin ? '<span style="color:#ffd700; font-size:11px;">(Admin)</span>' : ''}
                             <span class="status-indicator ${isOnline ? 'status-online' : 'status-offline'}">
                                 <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                                 ${isOnline ? 'Online' : 'Offline'}
@@ -662,6 +753,7 @@
                         <div class="user-email">${escapeHtml(user.email)}</div>
                         <div class="user-balance">💰 Demo: $${user.demoBalance} | Real: $${user.realBalance}</div>
                         ${!isOnline ? `<div class="last-seen">Last seen: ${lastSeen}</div>` : ''}
+                        ${!isMainAdmin ? `<button class="delete-user-btn" onclick="event.stopPropagation(); showDeleteModal(${user.id}, '${escapeHtml(user.name)}', '${escapeHtml(user.email)}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
                     </div>
                 `;
             }).join('');
@@ -670,9 +762,7 @@
         async function selectUser(userId, userName) {
             selectedUserId = userId;
             selectedUserName = userName;
-            const selectedNameSpan = document.getElementById('selectedUserName');
-            if (selectedNameSpan) selectedNameSpan.innerHTML = escapeHtml(userName);
-            
+            document.getElementById('selectedUserName').innerHTML = escapeHtml(userName);
             await markMessagesAsRead(userId);
             await loadUserMessages(userId);
             await loadUnreadCounts();
@@ -691,18 +781,13 @@
         
         async function loadUserMessages(userId) {
             const chatDiv = document.getElementById('chatMessages');
-            if (chatDiv) {
-                chatDiv.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading messages...</p></div>';
-            }
-            
+            chatDiv.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading messages...</p></div>';
             try {
                 const response = await fetch(`${API_URL}/api/admin/messages/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     displayMessages(data.messages || []);
-                } else {
-                    displayMessages([]);
-                }
+                } else { displayMessages([]); }
             } catch (error) {
                 console.error('Error loading messages:', error);
                 displayMessages([]);
@@ -713,21 +798,17 @@
             const viewer = document.getElementById('imageViewer');
             const img = document.getElementById('viewerImg');
             if (viewer && img) {
-                const fixedUrl = fixImageUrl(url);
-                console.log('Viewing image:', fixedUrl);
-                img.src = fixedUrl;
+                img.src = fixImageUrl(url);
                 viewer.classList.add('active');
             }
         }
         
         function closeImageViewer() {
-            const viewer = document.getElementById('imageViewer');
-            if (viewer) viewer.classList.remove('active');
+            document.getElementById('imageViewer').classList.remove('active');
         }
         
         function isImageUrl(text) {
             if (!text) return false;
-            // Check if text is a URL that points to an image
             return (text.startsWith('http') && (text.includes('.jpg') || text.includes('.png') || text.includes('.jpeg') || text.includes('.gif') || text.includes('uploads/'))) ||
                    text.includes('/uploads/');
         }
@@ -735,27 +816,16 @@
         function displayMessages(messages) {
             const chatDiv = document.getElementById('chatMessages');
             if (!chatDiv) return;
-            
             if (!messages || messages.length === 0) {
                 chatDiv.innerHTML = '<div class="no-user-selected"><i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i><p>No messages yet</p></div>';
                 return;
             }
-            
-            // Sort messages by timestamp (oldest first)
             const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-            
             chatDiv.innerHTML = sortedMessages.map(msg => {
-                // Check if message contains an image URL
                 let imageUrl = null;
                 let messageText = msg.text;
-                
-                if (msg.hasImage && msg.imageUrl) {
-                    imageUrl = msg.imageUrl;
-                } else if (isImageUrl(msg.text)) {
-                    imageUrl = msg.text;
-                    messageText = '📷 Image';
-                }
-                
+                if (msg.hasImage && msg.imageUrl) imageUrl = msg.imageUrl;
+                else if (isImageUrl(msg.text)) { imageUrl = msg.text; messageText = '📷 Image'; }
                 if (imageUrl) {
                     const fixedUrl = fixImageUrl(imageUrl);
                     return `
@@ -784,28 +854,24 @@
             const input = document.getElementById('chatInput');
             const text = input ? input.value.trim() : '';
             if (!text || !selectedUserId) {
-                if (!selectedUserId) alert('Select a user first');
+                if (!selectedUserId) showToast('Select a user first', true);
                 return;
             }
-            
             try {
                 const response = await fetch(`${API_URL}/api/admin/reply`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: selectedUserId, text, adminName: 'Support' })
+                    body: JSON.stringify({ userId: selectedUserId, text, adminName: 'Admin' })
                 });
-                
                 if (response.ok) {
                     if (input) input.value = '';
                     await loadUserMessages(selectedUserId);
                     await loadUnreadCounts();
                     applyFilters();
-                } else {
-                    alert('Failed to send reply');
-                }
+                } else { showToast('Failed to send reply', true); }
             } catch (error) {
                 console.error('Error sending reply:', error);
-                alert('Server error');
+                showToast('Server error', true);
             }
         }
         
@@ -818,10 +884,10 @@
         
         function logout() {
             localStorage.removeItem('isAdmin');
+            localStorage.removeItem('token');
             window.location.href = 'admin-login.html';
         }
         
-        // Auto-refresh every 5 seconds
         setInterval(() => {
             if (selectedUserId) loadUserMessages(selectedUserId);
             loadUsers();
@@ -834,9 +900,7 @@
         checkPendingDeposits();
         checkPendingWithdrawals();
         
-        document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape') closeImageViewer();
-        });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImageViewer(); });
     </script>
 </body>
 </html>
