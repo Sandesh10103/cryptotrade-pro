@@ -454,6 +454,14 @@
     <div id="referralModal" class="referral-modal"><div class="referral-modal-content" id="referralModalContent"></div></div>
 
     <script>
+        // ============ API CONFIGURATION ============
+        // Auto-detect API URL - works both locally and on Render
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'https://cryptotrade-pro.onrender.com';
+        
+        console.log('🔗 API URL:', API_URL);
+
         // ============ GLOBAL VARIABLES ============
         let cryptoList = [], selectedCrypto = null;
         let currentPrice = 0, userDemoBalance = 10000, userRealBalance = 0, currentMode = 'demo';
@@ -511,7 +519,7 @@
             if (!token) { window.location.href = 'index.html'; return; }
             
             try {
-                const res = await fetch('http://localhost:5000/api/user/data', {
+                const res = await fetch(`${API_URL}/api/user/data`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -550,7 +558,7 @@
             
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:5000/api/switch-mode', {
+                const res = await fetch(`${API_URL}/api/switch-mode`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -575,7 +583,7 @@
             if (!token) return;
             
             try {
-                const res = await fetch('http://localhost:5000/api/user/data', {
+                const res = await fetch(`${API_URL}/api/user/data`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -603,7 +611,7 @@
             if (!token) return;
             
             try {
-                const res = await fetch('http://localhost:5000/api/trades', {
+                const res = await fetch(`${API_URL}/api/trades`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -662,7 +670,7 @@
             grid.innerHTML = 'Loading...';
             
             try {
-                const res = await fetch('http://localhost:5000/api/crypto/list');
+                const res = await fetch(`${API_URL}/api/crypto/list`);
                 if (res.ok) {
                     const data = await res.json();
                     cryptoList = data.cryptos;
@@ -700,7 +708,7 @@
         async function updateCurrentPrice() {
             if (!selectedCrypto) return;
             try {
-                const res = await fetch(`http://localhost:5000/api/crypto/price/${selectedCrypto.symbol}`);
+                const res = await fetch(`${API_URL}/api/crypto/price/${selectedCrypto.symbol}`);
                 if (res.ok) {
                     const data = await res.json();
                     currentPrice = data.price;
@@ -804,7 +812,7 @@
             
             try {
                 // Verify PIN first
-                const verifyRes = await fetch('http://localhost:5000/api/user/verify-pin', {
+                const verifyRes = await fetch(`${API_URL}/api/user/verify-pin`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -933,7 +941,7 @@
             
             try {
                 console.log('📤 Sending trade to server...');
-                const response = await fetch('http://localhost:5000/api/trade', {
+                const response = await fetch(`${API_URL}/api/trade`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1012,7 +1020,7 @@
             if (!token) return;
             
             try {
-                const res = await fetch('http://localhost:5000/api/messages', {
+                const res = await fetch(`${API_URL}/api/messages`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -1023,7 +1031,7 @@
                     // Mark unread admin messages
                     const unreadMsgs = messages.filter(m => m.sender === 'admin' && !m.read);
                     if (unreadMsgs.length) {
-                        await fetch('http://localhost:5000/api/messages/mark-read', {
+                        await fetch(`${API_URL}/api/messages/mark-read`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
@@ -1062,7 +1070,7 @@
             
             const token = localStorage.getItem('token');
             try {
-                await fetch('http://localhost:5000/api/send-message', {
+                await fetch(`${API_URL}/api/send-message`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1086,7 +1094,7 @@
             const token = localStorage.getItem('token');
             
             try {
-                const response = await fetch('http://localhost:5000/api/upload-image', {
+                const response = await fetch(`${API_URL}/api/upload-image`, {
                     method: 'POST',
                     headers: { 'Authorization': `Bearer ${token}` },
                     body: formData
@@ -1105,7 +1113,7 @@
             const token = localStorage.getItem('token');
             if (!token) return;
             try {
-                const res = await fetch('http://localhost:5000/api/messages/unread-count', {
+                const res = await fetch(`${API_URL}/api/messages/unread-count`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -1157,7 +1165,7 @@
             }
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:5000/api/deposit/request', {
+                const res = await fetch(`${API_URL}/api/deposit/request`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1197,7 +1205,7 @@
             
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:5000/api/withdraw/request', {
+                const res = await fetch(`${API_URL}/api/withdraw/request`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1234,7 +1242,7 @@
         async function loadProfileContent() {
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:5000/api/user/profile', {
+                const res = await fetch(`${API_URL}/api/user/profile`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -1275,7 +1283,7 @@
         async function loadReferralContent() {
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:5000/api/referral/stats', {
+                const res = await fetch(`${API_URL}/api/referral/stats`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 if (res.ok) {
@@ -1310,7 +1318,7 @@
         async function convertPoints() {
             const token = localStorage.getItem('token');
             try {
-                const res = await fetch('http://localhost:5000/api/referral/convert-points', {
+                const res = await fetch(`${API_URL}/api/referral/convert-points`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',

@@ -197,6 +197,14 @@
     </div>
 
     <script>
+        // ============ API CONFIGURATION ============
+        // Auto-detect API URL - works both locally and on Render
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'https://cryptotrade-pro.onrender.com';
+        
+        console.log('🔗 API URL:', API_URL);
+        
         // Check if admin is logged in
         function checkAdmin() {
             const isAdmin = localStorage.getItem('isAdmin');
@@ -210,7 +218,7 @@
             const container = document.getElementById('depositsList');
             
             try {
-                const response = await fetch('http://localhost:5000/api/admin/deposits');
+                const response = await fetch(`${API_URL}/api/admin/deposits`);
                 
                 if (response.ok) {
                     const data = await response.json();
@@ -221,7 +229,7 @@
                 }
             } catch (error) {
                 console.error('Error loading deposits:', error);
-                container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error connecting to server. Make sure server is running on port 5000.</p></div>';
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error connecting to server. Please try again.</p></div>';
             }
         }
 
@@ -298,7 +306,7 @@
             }
 
             try {
-                const response = await fetch('http://localhost:5000/api/admin/deposit/approve', {
+                const response = await fetch(`${API_URL}/api/admin/deposit/approve`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -316,7 +324,7 @@
                 }
             } catch (error) {
                 console.error('Error approving deposit:', error);
-                alert('Server error. Make sure server is running.');
+                alert('Server error. Please try again.');
             }
         }
 
@@ -325,7 +333,7 @@
             const reason = prompt('Reason for rejection (optional):');
             
             try {
-                const response = await fetch('http://localhost:5000/api/admin/deposit/reject', {
+                const response = await fetch(`${API_URL}/api/admin/deposit/reject`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -346,7 +354,7 @@
                 }
             } catch (error) {
                 console.error('Error rejecting deposit:', error);
-                alert('Server error. Make sure server is running.');
+                alert('Server error. Please try again.');
             }
         }
 
@@ -372,8 +380,9 @@
         // Check admin and load deposits
         checkAdmin();
         loadDeposits();
+        
         // Clear deposit notification badge when page loads
-localStorage.setItem('depositsViewed', Date.now());
+        localStorage.setItem('depositsViewed', Date.now());
     </script>
 </body>
 </html>

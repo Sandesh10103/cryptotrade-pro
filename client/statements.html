@@ -134,7 +134,13 @@
     </div>
 
     <script>
-        const API_URL = 'http://localhost:5000';
+        // ============ API CONFIGURATION ============
+        // Auto-detect API URL - works both locally and on Render
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'https://cryptotrade-pro.onrender.com';
+        
+        console.log('🔗 API URL:', API_URL);
         
         async function loadTransactions() {
             const token = localStorage.getItem('token');
@@ -158,7 +164,7 @@
                 }
             } catch (error) {
                 console.error('Error:', error);
-                document.getElementById('transactionsList').innerHTML = '<div class="empty-state">Cannot connect to server. Make sure server is running.</div>';
+                document.getElementById('transactionsList').innerHTML = '<div class="empty-state">Cannot connect to server. Please try again.</div>';
             }
         }
         
@@ -230,7 +236,7 @@
                     const tradeProfit = t.profit || 0;
                     const isWin = tradeProfit > 0;
                     
-                    description = `${t.action === 'sell' ? 'Sell' : 'Trade'} ${t.direction || ''} - ${isWin ? 'WIN' : 'LOSS'}`;
+                    description = `${t.direction ? t.direction + ' ' : ''}Trade - ${isWin ? 'WIN' : 'LOSS'}`;
                     amountDisplay = tradeProfit >= 0 ? 
                         `<span class="profit-positive">+$${tradeProfit.toFixed(2)}</span>` : 
                         `<span class="profit-negative">-$${Math.abs(tradeProfit).toFixed(2)}</span>`;
@@ -255,7 +261,12 @@
             document.getElementById('transactionsList').innerHTML = tableHtml;
         }
         
-        loadTransactions();
+        // Check if user is logged in
+        if (!localStorage.getItem('token')) {
+            window.location.href = 'index.html';
+        } else {
+            loadTransactions();
+        }
     </script>
 </body>
 </html>

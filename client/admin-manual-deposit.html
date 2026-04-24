@@ -81,6 +81,14 @@
     </div>
 
     <script>
+        // ============ API CONFIGURATION ============
+        // Auto-detect API URL - works both locally and on Render
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'https://cryptotrade-pro.onrender.com';
+        
+        console.log('🔗 API URL:', API_URL);
+        
         function checkAdmin() {
             if (!localStorage.getItem('isAdmin')) {
                 window.location.href = 'admin-login.html';
@@ -111,7 +119,7 @@
             resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
             
             try {
-                const response = await fetch('http://localhost:5000/api/admin/add-funds', {
+                const response = await fetch(`${API_URL}/api/admin/add-funds`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, amount, note })
@@ -126,8 +134,8 @@
                     userInfoDiv.className = 'user-info show';
                     userInfoDiv.innerHTML = `
                         <h4><i class="fas fa-user-check"></i> Updated Account</h4>
-                        <p><strong>User:</strong> ${data.user.name}</p>
-                        <p><strong>Email:</strong> ${data.user.email}</p>
+                        <p><strong>User:</strong> ${escapeHtml(data.user.name)}</p>
+                        <p><strong>Email:</strong> ${escapeHtml(data.user.email)}</p>
                         <p><strong>New Real Balance:</strong> $${data.user.newBalance.toFixed(2)}</p>
                     `;
                     
@@ -140,9 +148,17 @@
                     userInfoDiv.className = 'user-info';
                 }
             } catch (error) {
+                console.error('Error adding funds:', error);
                 resultDiv.className = 'result error';
-                resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Server error. Make sure server is running.';
+                resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Server error. Please try again.';
             }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
         
         function logout() {

@@ -363,7 +363,14 @@
     </div>
 
     <script>
-        const SERVER_URL = 'http://localhost:5000';
+        // ============ API CONFIGURATION ============
+        // Auto-detect API URL - works both locally and on Render
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'https://cryptotrade-pro.onrender.com';
+        
+        console.log('🔗 API URL:', API_URL);
+        
         let selectedUserId = null;
         let selectedUserName = null;
         let allUsers = [];
@@ -390,7 +397,7 @@
             }
             // Remove leading slashes and add server URL
             const cleanUrl = url.replace(/^\/+/, '');
-            return `${SERVER_URL}/${cleanUrl}`;
+            return `${API_URL}/${cleanUrl}`;
         }
         
         // Image preview functions
@@ -433,7 +440,7 @@
             formData.append('image', file);
             
             try {
-                const response = await fetch(`${SERVER_URL}/api/upload-image`, {
+                const response = await fetch(`${API_URL}/api/upload-image`, {
                     method: 'POST',
                     body: formData
                 });
@@ -443,7 +450,7 @@
                     const imageUrl = fixImageUrl(data.imageUrl);
                     
                     // Send image as message
-                    await fetch(`${SERVER_URL}/api/admin/reply`, {
+                    await fetch(`${API_URL}/api/admin/reply`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ 
@@ -468,13 +475,13 @@
         
         async function loadUsers() {
             try {
-                const response = await fetch(`${SERVER_URL}/api/admin/users-with-status`);
+                const response = await fetch(`${API_URL}/api/admin/users-with-status`);
                 if (response.ok) {
                     const data = await response.json();
                     allUsers = data.users || [];
                     console.log('Users loaded:', allUsers.length);
                 } else {
-                    const fallbackRes = await fetch(`${SERVER_URL}/api/admin/users`);
+                    const fallbackRes = await fetch(`${API_URL}/api/admin/users`);
                     if (fallbackRes.ok) {
                         const fallbackData = await fallbackRes.json();
                         allUsers = fallbackData.users || [];
@@ -500,7 +507,7 @@
                 
                 for (const user of allUsers) {
                     try {
-                        const response = await fetch(`${SERVER_URL}/api/admin/messages/${user.id}`);
+                        const response = await fetch(`${API_URL}/api/admin/messages/${user.id}`);
                         if (response.ok) {
                             const data = await response.json();
                             const messages = data.messages || [];
@@ -522,7 +529,7 @@
         
         async function checkPendingDeposits() {
             try {
-                const response = await fetch(`${SERVER_URL}/api/admin/deposits`);
+                const response = await fetch(`${API_URL}/api/admin/deposits`);
                 if (response.ok) {
                     const data = await response.json();
                     const deposits = data.deposits || [];
@@ -542,7 +549,7 @@
         
         async function checkPendingWithdrawals() {
             try {
-                const response = await fetch(`${SERVER_URL}/api/admin/withdrawals`);
+                const response = await fetch(`${API_URL}/api/admin/withdrawals`);
                 if (response.ok) {
                     const data = await response.json();
                     const withdrawals = data.withdrawals || [];
@@ -674,7 +681,7 @@
         
         async function markMessagesAsRead(userId) {
             try {
-                await fetch(`${SERVER_URL}/api/messages/mark-admin-read`, {
+                await fetch(`${API_URL}/api/messages/mark-admin-read`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: userId })
@@ -689,7 +696,7 @@
             }
             
             try {
-                const response = await fetch(`${SERVER_URL}/api/admin/messages/${userId}`);
+                const response = await fetch(`${API_URL}/api/admin/messages/${userId}`);
                 if (response.ok) {
                     const data = await response.json();
                     displayMessages(data.messages || []);
@@ -782,7 +789,7 @@
             }
             
             try {
-                const response = await fetch(`${SERVER_URL}/api/admin/reply`, {
+                const response = await fetch(`${API_URL}/api/admin/reply`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ userId: selectedUserId, text, adminName: 'Support' })

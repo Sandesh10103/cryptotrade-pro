@@ -112,6 +112,15 @@
     </div>
 
     <script>
+        // ============ API CONFIGURATION ============
+        // This file uses local authentication only
+        // For production, you can connect to backend API if needed
+        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:5000'
+            : 'https://cryptotrade-pro.onrender.com';
+        
+        console.log('🔗 API URL:', API_URL);
+        
         async function adminLogin() {
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
@@ -121,8 +130,7 @@
                 return;
             }
             
-            // For now, simple admin check
-            // You can also verify with backend if needed
+            // Option 1: Simple local admin check (current method)
             if (username === 'admin' && password === 'admin123') {
                 localStorage.setItem('isAdmin', 'true');
                 localStorage.setItem('adminName', username);
@@ -134,10 +142,52 @@
                 setTimeout(() => {
                     window.location.href = 'admin.html';
                 }, 1000);
-            } else {
-                document.getElementById('errorMsg').innerText = 'Invalid credentials. Use admin / admin123';
-                document.getElementById('successMsg').innerText = '';
+                return;
             }
+            
+            // Option 2: You can also verify with backend API (uncomment if needed)
+            /*
+            try {
+                const response = await fetch(`${API_URL}/api/admin/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('isAdmin', 'true');
+                    localStorage.setItem('adminName', username);
+                    localStorage.setItem('adminToken', data.token);
+                    
+                    document.getElementById('successMsg').innerText = 'Login successful! Redirecting...';
+                    document.getElementById('errorMsg').innerText = '';
+                    
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 1000);
+                } else {
+                    document.getElementById('errorMsg').innerText = data.message || 'Invalid credentials';
+                    document.getElementById('successMsg').innerText = '';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                document.getElementById('errorMsg').innerText = 'Server error. Using local login.';
+                // Fallback to local login
+                if (username === 'admin' && password === 'admin123') {
+                    localStorage.setItem('isAdmin', 'true');
+                    localStorage.setItem('adminName', username);
+                    setTimeout(() => {
+                        window.location.href = 'admin.html';
+                    }, 1000);
+                }
+            }
+            */
+            
+            // If credentials don't match
+            document.getElementById('errorMsg').innerText = 'Invalid credentials. Use admin / admin123';
+            document.getElementById('successMsg').innerText = '';
         }
         
         // Check if already logged in
