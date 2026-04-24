@@ -395,7 +395,7 @@
                 <table class="history-table">
                     <thead><tr><th>Time</th><th>Asset</th><th>Amount</th><th>Direction</th><th>Duration</th><th>Entry Price</th><th>Exit Price</th><th>Change</th><th>Result</th><th>P&L</th></tr></thead>
                     <tbody id="tradeHistoryBody"><tr><td colspan="10" class="empty-history">No trades yet. Place your first trade!</td></tr></tbody>
-                <table>
+                </table>
             </div>
         </div>
     </div>
@@ -425,7 +425,7 @@
         <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="uploadImage()">
     </div>
 
-    <!-- PIN MODAL IS REMOVED - Trading now starts directly -->
+    <!-- PIN MODAL IS REMOVED - Trading starts directly -->
     
     <div id="depositModal" class="modal">
         <div class="modal-content">
@@ -438,11 +438,13 @@
         </div>
     </div>
 
+    <!-- Withdrawal Modal with PIN field -->
     <div id="withdrawModal" class="modal">
         <div class="modal-content">
             <h3>Withdraw Funds</h3>
             <input type="number" id="withdrawAmount" placeholder="Amount (Min $10)">
             <input type="text" id="withdrawAddress" placeholder="Wallet Address">
+            <input type="password" id="withdrawPinInput" maxlength="6" placeholder="6-digit PIN" required>
             <div style="display:flex; gap:10px; margin-top:20px;">
                 <button onclick="requestWithdrawal()" style="flex:1; padding:12px; background:#ffaa00; border:none; border-radius:8px;">Submit</button>
                 <button onclick="closeWithdrawModal()" style="flex:1; padding:12px; background:#ff4757; border:none; border-radius:8px;">Cancel</button>
@@ -466,7 +468,7 @@
         let currentPrice = 0, userDemoBalance = 10000, userRealBalance = 0, currentMode = 'demo';
         let unreadCount = 0;
         let tradeHistory = [];
-        let isTradeActive = false; // FIXED: Prevents multiple trades
+        let isTradeActive = false;
         let activeTradeInterval = null;
         let tradeStartTime = null;
         let tradeDuration = 60;
@@ -658,7 +660,7 @@
                         <td style="color: ${Number(changePercent) >= 0 ? '#00e676' : '#ff4757'}">${Number(changePercent) >= 0 ? '+' : ''}${Number(changePercent).toFixed(2)}%</td>
                         <td><span class="${result === 'WIN' ? 'result-win' : 'result-loss'}">${result === 'WIN' ? '✓ WIN' : '✗ LOSS'}</span></td>
                         <td class="${Number(profitLoss) >= 0 ? 'profit-positive' : 'profit-negative'}">${Number(profitLoss) >= 0 ? '+' : ''}$${Math.abs(Number(profitLoss)).toFixed(2)}</td>
-                    </tr>
+                    </td>
                 `;
             }).join('');
         }
@@ -745,7 +747,7 @@
             });
         }
 
-        // ============ TRADING - FIXED (NO PIN, PREVENTS MULTIPLE TRADES) ============
+        // ============ TRADING - NO PIN REQUIRED ============
         function selectTradeDuration(seconds) {
             if (isTradeActive) {
                 showNotification('Trade Active', 'Please wait for current trade to complete', 'error');
@@ -762,9 +764,7 @@
             document.getElementById('tradeAmount').value = amt;
         }
 
-        // NEW: Direct trade start - NO PIN REQUIRED
         async function startTradeDirect(direction) {
-            // Prevent multiple trades
             if (isTradeActive) {
                 showNotification('Trade Active', 'Please wait for current trade to complete', 'error');
                 return;
@@ -780,25 +780,19 @@
                 return;
             }
             
-            // Mark trade as active immediately
             isTradeActive = true;
-            
-            // Store trade info
             activeDirection = direction;
             activeAmount = amount;
             activeEntryPrice = currentPrice;
             tradeDuration = selectedDuration;
             tradeStartTime = Date.now();
             
-            // Disable buttons while trade is active
             document.getElementById('upBtn').disabled = true;
             document.getElementById('downBtn').disabled = true;
             
-            // Show active trade card
             document.getElementById('activeTradeCard').style.display = 'block';
             document.querySelectorAll('.timer-option').forEach(opt => opt.classList.add('disabled'));
             
-            // Start countdown
             if (activeTradeInterval) clearInterval(activeTradeInterval);
             
             activeTradeInterval = setInterval(async () => {
@@ -809,7 +803,6 @@
                 const secondsLeft = Math.ceil(remaining / 1000);
                 const priceChange = ((currentPrice - activeEntryPrice) / activeEntryPrice) * 100;
                 
-                // Update display
                 document.getElementById('activeTradeProgress').style.width = `${(remaining / (tradeDuration * 1000)) * 100}%`;
                 document.getElementById('activeTradeDetails').innerHTML = `
                     <div class="active-trade-item"><div class="active-trade-label">Asset</div><div class="active-trade-value">${selectedCrypto.symbol}</div></div>
@@ -833,18 +826,15 @@
         async function settleTradeDirect() {
             if (!isTradeActive) return;
             
-            // Get final price
             await updateCurrentPrice();
             
             const priceChange = ((currentPrice - activeEntryPrice) / activeEntryPrice) * 100;
             let won;
             
             if (currentMode === 'demo') {
-                // Demo mode: 70% chance to win for testing
                 won = Math.random() < 0.7;
                 console.log(`🎮 Demo mode - Random result: ${won ? 'WIN' : 'LOSS'}`);
             } else {
-                // REAL mode: based on actual price movement
                 if (activeDirection === 'UP') {
                     won = currentPrice > activeEntryPrice;
                 } else {
@@ -857,7 +847,6 @@
             
             console.log(`📊 Trade result: ${won ? 'WIN' : 'LOSS'}, P&L: $${profitLoss.toFixed(2)}`);
             
-            // Save trade to server (using default PIN since we removed PIN modal)
             const token = localStorage.getItem('token');
             if (!token) {
                 showNotification('Error', 'Please login again', 'error');
@@ -876,7 +865,7 @@
                     body: JSON.stringify({
                         amount: activeAmount,
                         direction: activeDirection,
-                        pin: '123456', // Default PIN
+                        pin: '123456',
                         priceAtTrade: activeEntryPrice,
                         crypto: selectedCrypto.symbol,
                         exitPrice: currentPrice,
@@ -892,7 +881,6 @@
                 if (response.ok && result.success) {
                     console.log('✅ Trade saved to server, new balance:', result.newBalance);
                     
-                    // Update local balance from server response
                     if (currentMode === 'demo') {
                         userDemoBalance = result.newBalance;
                     } else {
@@ -900,7 +888,6 @@
                     }
                     updateBalanceDisplay();
                     
-                    // Refresh all data from server
                     await loadBalances();
                     await loadTradeHistory();
                     await loadStats();
@@ -958,7 +945,6 @@
                     const messages = data.messages || [];
                     displayMessages(messages);
                     
-                    // Mark unread admin messages
                     const unreadMsgs = messages.filter(m => m.sender === 'admin' && !m.read);
                     if (unreadMsgs.length) {
                         await fetch(`${API_URL}/api/messages/mark-read`, {
@@ -1062,7 +1048,7 @@
             } catch (error) {}
         }
 
-        // ============ DEPOSIT/WITHDRAWAL ============
+        // ============ DEPOSIT - NO PIN REQUIRED ============
         function openDepositModal() {
             if (currentMode === 'demo') {
                 showNotification('Demo Mode', 'Switch to REAL mode to deposit', 'info');
@@ -1073,18 +1059,6 @@
 
         function closeDepositModal() {
             document.getElementById('depositModal').classList.remove('active');
-        }
-
-        function openWithdrawModal() {
-            if (currentMode === 'demo') {
-                showNotification('Demo Mode', 'Switch to REAL mode to withdraw', 'info');
-                return;
-            }
-            document.getElementById('withdrawModal').classList.add('active');
-        }
-
-        function closeWithdrawModal() {
-            document.getElementById('withdrawModal').classList.remove('active');
         }
 
         async function requestDeposit() {
@@ -1103,32 +1077,67 @@
                     },
                     body: JSON.stringify({ amount, method: 'crypto' })
                 });
+                const data = await res.json();
                 if (res.ok) {
                     showNotification('Deposit Request', `$${amount} submitted for approval`, 'success');
                     closeDepositModal();
+                    document.getElementById('depositAmount').value = '';
                     await loadMessages();
                 } else {
-                    showNotification('Deposit Failed', 'Try again', 'error');
+                    showNotification('Deposit Failed', data.message || 'Try again', 'error');
                 }
             } catch(e) {
+                console.error('Deposit error:', e);
                 showNotification('Server Error', 'Check connection', 'error');
             }
+        }
+
+        // ============ WITHDRAWAL - PIN REQUIRED ============
+        function openWithdrawModal() {
+            if (currentMode === 'demo') {
+                showNotification('Demo Mode', 'Switch to REAL mode to withdraw', 'info');
+                return;
+            }
+            document.getElementById('withdrawModal').classList.add('active');
+            document.getElementById('withdrawPinInput').value = '';
+        }
+
+        function closeWithdrawModal() {
+            document.getElementById('withdrawModal').classList.remove('active');
+            document.getElementById('withdrawPinInput').value = '';
         }
 
         async function requestWithdrawal() {
             const amount = parseFloat(document.getElementById('withdrawAmount').value);
             const address = document.getElementById('withdrawAddress').value;
+            const pin = document.getElementById('withdrawPinInput').value;
             
             if (!amount || amount < 10) {
-                showNotification('Invalid Amount', 'Minimum $10', 'error');
+                showNotification('Invalid Amount', 'Minimum withdrawal is $10', 'error');
                 return;
             }
             if (!address) {
-                showNotification('Missing Info', 'Enter wallet address', 'error');
+                showNotification('Missing Info', 'Please enter your wallet address', 'error');
+                return;
+            }
+            if (!pin || pin.length !== 6) {
+                showNotification('Invalid PIN', 'Please enter your 6-digit withdrawal PIN', 'error');
                 return;
             }
             
             const token = localStorage.getItem('token');
+            if (!token) {
+                showNotification('Error', 'Please login again', 'error');
+                return;
+            }
+            
+            const submitBtn = event?.target;
+            const originalText = submitBtn ? submitBtn.textContent : 'Submit';
+            if (submitBtn) {
+                submitBtn.textContent = 'Processing...';
+                submitBtn.disabled = true;
+            }
+            
             try {
                 const res = await fetch(`${API_URL}/api/withdraw/request`, {
                     method: 'POST',
@@ -1136,18 +1145,34 @@
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ amount, method: 'crypto', walletAddress: address, pin: '123456' })
+                    body: JSON.stringify({ 
+                        amount: amount, 
+                        walletAddress: address,
+                        pin: pin 
+                    })
                 });
+                
+                const data = await res.json();
+                
                 if (res.ok) {
-                    showNotification('Withdrawal Request', `$${amount} submitted for processing`, 'success');
+                    showNotification('Withdrawal Request', `$${amount} submitted for approval`, 'success');
                     await loadBalances();
                     closeWithdrawModal();
+                    document.getElementById('withdrawAmount').value = '';
+                    document.getElementById('withdrawAddress').value = '';
+                    document.getElementById('withdrawPinInput').value = '';
                     await loadMessages();
                 } else {
-                    showNotification('Withdrawal Failed', 'Try again', 'error');
+                    showNotification('Withdrawal Failed', data.message || 'Invalid PIN or insufficient balance', 'error');
                 }
-            } catch(e) {
-                showNotification('Server Error', 'Check connection', 'error');
+            } catch(error) {
+                console.error('Withdrawal error:', error);
+                showNotification('Server Error', 'Could not connect to server', 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.textContent = originalText;
+                    submitBtn.disabled = false;
+                }
             }
         }
 
@@ -1228,7 +1253,7 @@
                                 <div class="referral-stat-card"><span>🏆 Total Points Earned</span><h2>${data.total_points_earned}</h2></div>
                                 <div class="referral-stat-card"><span>🔄 Points Converted</span><h2>${data.points_converted}</h2></div>
                             </div>
-                            <div class="referral-history"><h4>Referral History</h4><div>${data.referred_users?.length ? '<table style="width:100%"><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Status</th></tr></thead><tbody>' + data.referred_users.map(u => `</table><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${new Date(u.joinedAt).toLocaleDateString()}</td><td>${u.completed ? '✓ Completed' : '⏳ Pending'}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty-referrals">No referrals yet</div>'}</div></div>
+                            <div class="referral-history"><h4>Referral History</h4><div>${data.referred_users?.length ? '<table style="width:100%"><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Status</th></tr></thead><tbody>' + data.referred_users.map(u => `<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${new Date(u.joinedAt).toLocaleDateString()}</td><td>${u.completed ? '✓ Completed' : '⏳ Pending'}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty-referrals">No referrals yet</div>'}</div></div>
                         `;
                     }
                 }
@@ -1273,6 +1298,11 @@
         }
 
         // ============ INITIALIZATION ============
+        // PIN input restrictions for withdrawal
+        document.getElementById('withdrawPinInput')?.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        });
+
         // Close modals when clicking outside
         document.getElementById('profileModal')?.addEventListener('click', function(e) {
             if (e.target === this) closeProfileModal();
