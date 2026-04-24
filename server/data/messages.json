@@ -1,0 +1,42 @@
+[
+  {
+    "id": 1,
+    "userId": 1,
+    "userName": "sa",
+    "text": "💰 DEPOSIT REQUEST: $1000 via crypto. Waiting for admin approval.",
+    "sender": "user",
+    "timestamp": "2026-04-23T22:15:26.620Z",
+    "read": true,
+    "adminRead": true
+  },
+  {
+    "id": 2,
+    "userId": 1,
+    "userName": "Admin",
+    "text": "✅ Your deposit of $1000 has been APPROVED and added to your Real account balance!",
+    "sender": "admin",
+    "timestamp": "2026-04-23T22:16:03.414Z",
+    "read": true,
+    "adminRead": true
+  },
+  {
+    "id": 3,
+    "userId": 1,
+    "userName": "sa",
+    "text": "💸 WITHDRAWAL REQUEST: $100 to qqqqqqqq. Waiting for admin processing.",
+    "sender": "user",
+    "timestamp": "2026-04-23T22:24:44.312Z",
+    "read": true,
+    "adminRead": true
+  },
+  {
+    "id": 4,
+    "userId": 1,
+    "userName": "Admin",
+    "text": "❌ Your withdrawal of $100 has been REJECTED. Reason: np. Funds have been refunded.",
+    "sender": "admin",
+    "timestamp": "2026-04-23T22:25:00.183Z",
+    "read": true,
+    "adminRead": true
+  }
+]

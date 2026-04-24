@@ -1,0 +1,14 @@
+[
+  {
+    "id": 1,
+    "userId": 1,
+    "userName": "sa",
+    "amount": 1000,
+    "method": "crypto",
+    "status": "approved",
+    "notified": false,
+    "createdAt": "2026-04-23T22:15:26.619Z",
+    "transactionId": "DEP_1776982526619_2UNZGG",
+    "approvedAt": "2026-04-23T22:16:03.412Z"
+  }
+]

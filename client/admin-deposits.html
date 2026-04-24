@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Deposits - CryptoTrade</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e27;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(18, 25, 55, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover,
+        .nav-btn.active {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border-color: transparent;
+        }
+
+        .deposits-table {
+            background: rgba(18, 25, 55, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 24px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            color: #ffaa00;
+        }
+
+        .status-approved {
+            color: #00e676;
+        }
+
+        .status-rejected {
+            color: #ff4757;
+        }
+
+        .approve-btn,
+        .reject-btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 8px;
+            transition: all 0.3s;
+        }
+
+        .approve-btn {
+            background: #00e676;
+            color: #000;
+        }
+
+        .reject-btn {
+            background: #ff4757;
+            color: white;
+        }
+
+        .approve-btn:hover,
+        .reject-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #5a6280;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+
+            th,
+            td {
+                padding: 8px;
+                font-size: 12px;
+            }
+
+            .nav-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <h1>CRYPTOTRADE <span style="color:#00d4ff;">ADMIN</span></h1>
+            </div>
+            <div class="nav-buttons">
+                <a href="admin.html" class="nav-btn">💬 Chat</a>
+                <a href="admin-deposits.html" class="nav-btn active">💰 Deposits</a>
+                <a href="admin-withdrawals.html" class="nav-btn">💸 Withdrawals</a>
+                <button class="nav-btn" onclick="logout()">🚪 Logout</button>
+            </div>
+        </div>
+
+        <div class="deposits-table">
+            <div class="section-title">
+                <i class="fas fa-plus-circle"></i> Deposit Requests
+            </div>
+            <div id="depositsList">
+                <div class="empty-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading deposits...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Check if admin is logged in
+        function checkAdmin() {
+            const isAdmin = localStorage.getItem('isAdmin');
+            if (!isAdmin) {
+                window.location.href = 'admin-login.html';
+            }
+        }
+
+        // Load all deposits
+        async function loadDeposits() {
+            const container = document.getElementById('depositsList');
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/deposits');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const deposits = data.deposits || [];
+                    displayDeposits(deposits);
+                } else {
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load deposits</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading deposits:', error);
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error connecting to server. Make sure server is running on port 5000.</p></div>';
+            }
+        }
+
+        // Display deposits in table
+        function displayDeposits(deposits) {
+            const container = document.getElementById('depositsList');
+            
+            if (deposits.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No deposit requests yet</p><p style="font-size:12px; margin-top:8px;">Users will see their deposit requests here</p></div>';
+                return;
+            }
+
+            // Sort by newest first
+            deposits.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            let tableHtml = `
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            for (const deposit of deposits) {
+                const statusClass = `status-${deposit.status}`;
+                const statusText = deposit.status.toUpperCase();
+                const date = new Date(deposit.createdAt).toLocaleString();
+                
+                let actions = '';
+                if (deposit.status === 'pending') {
+                    actions = `
+                        <button class="approve-btn" onclick="approveDeposit(${deposit.id})">Approve</button>
+                        <button class="reject-btn" onclick="rejectDeposit(${deposit.id})">Reject</button>
+                    `;
+                } else {
+                    actions = '<span style="color:#5a6280;">Processed</span>';
+                }
+
+                tableHtml += `
+                    <tr>
+                        <td>${deposit.id}</td>
+                        <td>${escapeHtml(deposit.userName)}</td>
+                        <td>$${deposit.amount}</td>
+                        <td>${deposit.method}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${date}</td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+            }
+
+            tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = tableHtml;
+        }
+
+        // Approve deposit
+        async function approveDeposit(depositId) {
+            if (!confirm('Approve this deposit? The funds will be added to the user\'s real balance.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/deposit/approve', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ depositId: depositId })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadDeposits(); // Refresh the list
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error approving deposit:', error);
+                alert('Server error. Make sure server is running.');
+            }
+        }
+
+        // Reject deposit
+        async function rejectDeposit(depositId) {
+            const reason = prompt('Reason for rejection (optional):');
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/deposit/reject', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        depositId: depositId,
+                        reason: reason || 'No reason provided'
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`❌ ${data.message}`);
+                    loadDeposits(); // Refresh the list
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error rejecting deposit:', error);
+                alert('Server error. Make sure server is running.');
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('isAdmin');
+            window.location.href = 'admin-login.html';
+        }
+
+        // Auto-refresh every 5 seconds
+        let refreshInterval = setInterval(() => {
+            loadDeposits();
+        }, 5000);
+
+        // Check admin and load deposits
+        checkAdmin();
+        loadDeposits();
+        // Clear deposit notification badge when page loads
+localStorage.setItem('depositsViewed', Date.now());
+    </script>
+</body>
+</html>

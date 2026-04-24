@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Withdrawals - CryptoTrade</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #0a0e27;
+            color: #fff;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            background: rgba(18, 25, 55, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #fff, #00d4ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-buttons {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .nav-btn {
+            padding: 10px 24px;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .nav-btn:hover,
+        .nav-btn.active {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border-color: transparent;
+        }
+
+        .withdrawals-table {
+            background: rgba(18, 25, 55, 0.6);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 24px;
+            padding: 24px;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th,
+        td {
+            padding: 14px;
+            text-align: left;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        th {
+            color: #ffaa00;
+            font-weight: 600;
+        }
+
+        .status-pending {
+            color: #ffaa00;
+        }
+
+        .status-approved {
+            color: #00d4ff;
+        }
+
+        .status-completed {
+            color: #00e676;
+        }
+
+        .status-rejected {
+            color: #ff4757;
+        }
+
+        .complete-btn,
+        .reject-btn {
+            padding: 6px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            margin-right: 8px;
+            transition: all 0.3s;
+        }
+
+        .complete-btn {
+            background: #00e676;
+            color: #000;
+        }
+
+        .reject-btn {
+            background: #ff4757;
+            color: white;
+        }
+
+        .complete-btn:hover,
+        .reject-btn:hover {
+            transform: translateY(-2px);
+        }
+
+        .address-info {
+            font-size: 11px;
+            color: #8a92b0;
+            max-width: 200px;
+            word-break: break-all;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #5a6280;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        @media (max-width: 768px) {
+
+            th,
+            td {
+                padding: 8px;
+                font-size: 12px;
+            }
+
+            .nav-buttons {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">
+                <h1>CRYPTOTRADE <span style="color:#00d4ff;">ADMIN</span></h1>
+            </div>
+            <div class="nav-buttons">
+                <a href="admin.html" class="nav-btn">💬 Chat</a>
+                <a href="admin-deposits.html" class="nav-btn">💰 Deposits</a>
+                <a href="admin-withdrawals.html" class="nav-btn active">💸 Withdrawals</a>
+                <button class="nav-btn" onclick="logout()">🚪 Logout</button>
+            </div>
+        </div>
+
+        <div class="withdrawals-table">
+            <div class="section-title">
+                <i class="fas fa-minus-circle"></i> Withdrawal Requests
+            </div>
+            <div id="withdrawalsList">
+                <div class="empty-state">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Loading withdrawals...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Clear withdrawal notification badge when page loads
+localStorage.setItem('withdrawalsViewed', Date.now());
+        // Check if admin is logged in
+        function checkAdmin() {
+            const isAdmin = localStorage.getItem('isAdmin');
+            if (!isAdmin) {
+                window.location.href = 'admin-login.html';
+            }
+        }
+
+        // Load all withdrawals
+        async function loadWithdrawals() {
+            const container = document.getElementById('withdrawalsList');
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/withdrawals');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const withdrawals = data.withdrawals || [];
+                    displayWithdrawals(withdrawals);
+                } else {
+                    container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Failed to load withdrawals</p></div>';
+                }
+            } catch (error) {
+                console.error('Error loading withdrawals:', error);
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error connecting to server. Make sure server is running on port 5000.</p></div>';
+            }
+        }
+
+        // Display withdrawals in table
+        function displayWithdrawals(withdrawals) {
+            const container = document.getElementById('withdrawalsList');
+            
+            if (withdrawals.length === 0) {
+                container.innerHTML = '<div class="empty-state"><i class="fas fa-inbox"></i><p>No withdrawal requests yet</p><p style="font-size:12px; margin-top:8px;">Users will see their withdrawal requests here</p></div>';
+                return;
+            }
+
+            // Sort by newest first
+            withdrawals.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+            let tableHtml = `
+                <div style="overflow-x: auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>User</th>
+                                <th>Amount</th>
+                                <th>Method</th>
+                                <th>Destination</th>
+                                <th>Status</th>
+                                <th>Date</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            for (const w of withdrawals) {
+                let destination = '';
+                if (w.method === 'crypto') {
+                    const shortAddress = w.walletAddress ? w.walletAddress.substring(0, 20) + '...' : 'N/A';
+                    destination = `<div class="address-info">₿ ${shortAddress}</div>`;
+                } else {
+                    destination = `<div class="address-info">🏦 Acc: ${w.accountNumber || 'N/A'}</div>`;
+                }
+
+                const statusClass = `status-${w.status}`;
+                const statusText = w.status.toUpperCase();
+                const date = new Date(w.createdAt).toLocaleString();
+                
+                let actions = '';
+                if (w.status === 'pending') {
+                    actions = `
+                        <button class="complete-btn" onclick="completeWithdrawal(${w.id})">Complete</button>
+                        <button class="reject-btn" onclick="rejectWithdrawal(${w.id})">Reject</button>
+                    `;
+                } else if (w.status === 'approved') {
+                    actions = `<button class="complete-btn" onclick="completeWithdrawal(${w.id})">Mark Complete</button>`;
+                } else {
+                    actions = '<span style="color:#5a6280;">Processed</span>';
+                }
+
+                tableHtml += `
+                    <tr>
+                        <td>${w.id}</td>
+                        <td>${escapeHtml(w.userName)}</td>
+                        <td>$${w.amount}</td>
+                        <td>${w.method}</td>
+                        <td>${destination}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                        <td>${date}</td>
+                        <td>${actions}</td>
+                    </tr>
+                `;
+            }
+
+            tableHtml += `
+                        </tbody>
+                    </table>
+                </div>
+            `;
+
+            container.innerHTML = tableHtml;
+        }
+
+        // Complete withdrawal
+        async function completeWithdrawal(withdrawalId) {
+            const transactionHash = prompt('Enter transaction hash/reference ID for this withdrawal:');
+            if (!transactionHash) return;
+
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/withdraw/complete', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        withdrawalId: withdrawalId,
+                        transactionHash: transactionHash
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`✅ ${data.message}`);
+                    loadWithdrawals(); // Refresh the list
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error completing withdrawal:', error);
+                alert('Server error. Make sure server is running.');
+            }
+        }
+
+        // Reject withdrawal (refunds user)
+        async function rejectWithdrawal(withdrawalId) {
+            const reason = prompt('Reason for rejection (will be sent to user):');
+            if (!reason) return;
+
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/withdraw/reject', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ 
+                        withdrawalId: withdrawalId,
+                        reason: reason
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert(`❌ ${data.message}`);
+                    loadWithdrawals(); // Refresh the list
+                } else {
+                    alert(`Error: ${data.message}`);
+                }
+            } catch (error) {
+                console.error('Error rejecting withdrawal:', error);
+                alert('Server error. Make sure server is running.');
+            }
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Logout function
+        function logout() {
+            localStorage.removeItem('isAdmin');
+            window.location.href = 'admin-login.html';
+        }
+
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            loadWithdrawals();
+        }, 5000);
+
+        // Check admin and load withdrawals
+        checkAdmin();
+        loadWithdrawals();
+    </script>
+</body>
+</html>

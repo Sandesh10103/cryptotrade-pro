@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction History - CryptoTrade</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0a0e27; color: #fff; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        
+        .header {
+            background: #121937;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .back-btn {
+            background: #00d4ff;
+            color: #000;
+            padding: 10px 20px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        h2 { font-size: 24px; }
+        
+        /* Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .summary-card {
+            background: #121937;
+            border-radius: 16px;
+            padding: 20px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .summary-card i { font-size: 28px; margin-bottom: 10px; }
+        .summary-card.deposits i { color: #00e676; }
+        .summary-card.withdrawals i { color: #ffaa00; }
+        .summary-card.trades i { color: #00d4ff; }
+        .summary-card.profit i { color: #00e676; }
+        .summary-label { font-size: 12px; color: #8a92b0; margin-bottom: 8px; }
+        .summary-value { font-size: 28px; font-weight: bold; }
+        .summary-card.deposits .summary-value { color: #00e676; }
+        .summary-card.withdrawals .summary-value { color: #ffaa00; }
+        .summary-card.trades .summary-value { color: #00d4ff; }
+        .summary-card.profit .summary-value { color: #00e676; }
+        
+        /* Table */
+        .transactions-table {
+            background: #121937;
+            border-radius: 16px;
+            padding: 20px;
+            overflow-x: auto;
+        }
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 10px; text-align: left; border-bottom: 1px solid #2a2f4a; }
+        th { color: #00d4ff; font-weight: 600; }
+        .type-deposit { color: #00e676; }
+        .type-withdrawal { color: #ffaa00; }
+        .type-trade { color: #00d4ff; }
+        .status-approved, .status-completed { color: #00e676; }
+        .status-pending { color: #ffaa00; }
+        .status-rejected { color: #ff4757; }
+        .profit-positive { color: #00e676; }
+        .profit-negative { color: #ff4757; }
+        .empty-state { text-align: center; padding: 40px; color: #8a92b0; }
+        
+        @media (max-width: 768px) {
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            th, td { font-size: 12px; padding: 8px 5px; }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2><i class="fas fa-history"></i> Transaction History</h2>
+            <a href="dashboard.html" class="back-btn"><i class="fas fa-arrow-left"></i> Back to Trading</a>
+        </div>
+        
+        <!-- Summary Cards -->
+        <div class="summary-grid" id="summaryGrid">
+            <div class="summary-card deposits">
+                <i class="fas fa-plus-circle"></i>
+                <div class="summary-label">Total Deposits</div>
+                <div class="summary-value" id="totalDeposits">$0</div>
+            </div>
+            <div class="summary-card withdrawals">
+                <i class="fas fa-minus-circle"></i>
+                <div class="summary-label">Total Withdrawals</div>
+                <div class="summary-value" id="totalWithdrawals">$0</div>
+            </div>
+            <div class="summary-card trades">
+                <i class="fas fa-chart-line"></i>
+                <div class="summary-label">Total Trades</div>
+                <div class="summary-value" id="totalTrades">0</div>
+            </div>
+            <div class="summary-card profit">
+                <i class="fas fa-dollar-sign"></i>
+                <div class="summary-label">Net Trading P&L</div>
+                <div class="summary-value" id="netProfit">$0</div>
+            </div>
+        </div>
+        
+        <!-- Transactions Table -->
+        <div class="transactions-table">
+            <div class="section-title">
+                <i class="fas fa-list"></i> All Transactions
+            </div>
+            <div id="transactionsList">
+                <div class="empty-state"><i class="fas fa-spinner fa-spin"></i> Loading...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:5000';
+        
+        async function loadTransactions() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`${API_URL}/api/transactions`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                if (res.ok) {
+                    const data = await res.json();
+                    displayTransactions(data);
+                } else if (res.status === 401) {
+                    window.location.href = 'index.html';
+                } else {
+                    document.getElementById('transactionsList').innerHTML = '<div class="empty-state">Error loading transactions. Please try again.</div>';
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('transactionsList').innerHTML = '<div class="empty-state">Cannot connect to server. Make sure server is running.</div>';
+            }
+        }
+        
+        function displayTransactions(data) {
+            const transactions = data.transactions || [];
+            const summary = data.summary || { totalDeposits: 0, totalWithdrawals: 0, totalTrades: 0, totalProfit: 0 };
+            
+            // Update summary cards
+            document.getElementById('totalDeposits').innerHTML = `$${summary.totalDeposits.toFixed(2)}`;
+            document.getElementById('totalWithdrawals').innerHTML = `$${summary.totalWithdrawals.toFixed(2)}`;
+            document.getElementById('totalTrades').innerHTML = summary.totalTrades;
+            
+            const profitElement = document.getElementById('netProfit');
+            const profitValue = summary.totalProfit || 0;
+            profitElement.innerHTML = `${profitValue >= 0 ? '+' : ''}$${profitValue.toFixed(2)}`;
+            profitElement.style.color = profitValue >= 0 ? '#00e676' : '#ff4757';
+            
+            if (transactions.length === 0) {
+                document.getElementById('transactionsList').innerHTML = '<div class="empty-state">No transactions yet</div>';
+                return;
+            }
+            
+            let tableHtml = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Type</th>
+                            <th>Asset</th>
+                            <th>Description</th>
+                            <th>Amount</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            for (const t of transactions) {
+                const date = new Date(t.createdAt).toLocaleString();
+                let typeClass = '';
+                let typeIcon = '';
+                let assetDisplay = '';
+                let description = '';
+                let amountDisplay = '';
+                let statusDisplay = '';
+                
+                if (t.type === 'deposit') {
+                    typeClass = 'type-deposit';
+                    typeIcon = '<i class="fas fa-plus-circle"></i>';
+                    assetDisplay = '-';
+                    description = `Deposit of $${t.amount}`;
+                    amountDisplay = `<span style="color:#00e676;">+$${t.amount}</span>`;
+                    statusDisplay = `<span class="status-${t.status}">${t.status.toUpperCase()}</span>`;
+                } 
+                else if (t.type === 'withdrawal') {
+                    typeClass = 'type-withdrawal';
+                    typeIcon = '<i class="fas fa-minus-circle"></i>';
+                    assetDisplay = '-';
+                    description = `Withdrawal of $${t.amount}`;
+                    amountDisplay = `<span style="color:#ffaa00;">-$${t.amount}</span>`;
+                    statusDisplay = `<span class="status-${t.status}">${t.status.toUpperCase()}</span>`;
+                } 
+                else if (t.type === 'trade') {
+                    typeClass = 'type-trade';
+                    typeIcon = '<i class="fas fa-chart-line"></i>';
+                    assetDisplay = t.symbol || 'BTC';
+                    
+                    // Calculate profit/loss for trade
+                    const tradeProfit = t.profit || 0;
+                    const isWin = tradeProfit > 0;
+                    
+                    description = `${t.action === 'sell' ? 'Sell' : 'Trade'} ${t.direction || ''} - ${isWin ? 'WIN' : 'LOSS'}`;
+                    amountDisplay = tradeProfit >= 0 ? 
+                        `<span class="profit-positive">+$${tradeProfit.toFixed(2)}</span>` : 
+                        `<span class="profit-negative">-$${Math.abs(tradeProfit).toFixed(2)}</span>`;
+                    statusDisplay = isWin ? 
+                        '<span class="status-approved">WIN</span>' : 
+                        '<span class="status-rejected">LOSS</span>';
+                }
+                
+                tableHtml += `
+                    <tr>
+                        <td>${date}</td>
+                        <td class="${typeClass}">${typeIcon} ${t.type.toUpperCase()}</td>
+                        <td>${assetDisplay}</td>
+                        <td>${description}</td>
+                        <td>${amountDisplay}</td>
+                        <td>${statusDisplay}</td>
+                    </tr>
+                `;
+            }
+            
+            tableHtml += `</tbody></table>`;
+            document.getElementById('transactionsList').innerHTML = tableHtml;
+        }
+        
+        loadTransactions();
+    </script>
+</body>
+</html>

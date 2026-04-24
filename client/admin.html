@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - CryptoTrade Support</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #0a0e27; color: #fff; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        .header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 16px 24px; background: rgba(18,25,55,0.6); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; margin-bottom: 24px;
+            flex-wrap: wrap; gap: 15px;
+        }
+        .logo h1 { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, #fff, #00d4ff); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .nav-buttons { display: flex; gap: 12px; flex-wrap: wrap; }
+        .nav-btn {
+            position: relative;
+            padding: 10px 24px;
+            background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 40px;
+            color: white;
+            cursor: pointer;
+            text-decoration: none;
+            font-weight: 500;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .nav-btn:hover, .nav-btn.active { background: linear-gradient(135deg, #00d4ff, #0099cc); border-color: transparent; }
+        
+        .nav-badge {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4757;
+            color: white;
+            font-size: 11px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 20px;
+            min-width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: bounce 0.5s ease;
+        }
+        @keyframes bounce {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .main-grid { display: grid; grid-template-columns: 350px 1fr; gap: 24px; height: calc(100vh - 120px); }
+        
+        .users-section {
+            background: rgba(18,25,55,0.6); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 24px;
+            padding: 20px; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .section-title { font-size: 18px; font-weight: 700; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        
+        .search-bar {
+            margin-bottom: 15px;
+            position: relative;
+        }
+        .search-bar input {
+            width: 100%;
+            padding: 12px 15px 12px 40px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 40px;
+            color: white;
+            font-size: 14px;
+            outline: none;
+        }
+        .search-bar input:focus { border-color: #00d4ff; }
+        .search-bar i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #8a92b0;
+        }
+        .clear-search {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #8a92b0;
+            display: none;
+        }
+        .clear-search:hover { color: #ff4757; }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        .filter-btn {
+            padding: 6px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 20px;
+            color: #8a92b0;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+        .filter-btn:hover { background: rgba(0,212,255,0.2); color: #00d4ff; }
+        .filter-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; }
+        
+        .users-list { flex: 1; overflow-y: auto; }
+        .user-item {
+            padding: 15px; background: rgba(255,255,255,0.03); border-radius: 16px;
+            margin-bottom: 10px; cursor: pointer; transition: all 0.3s; border: 1px solid transparent;
+        }
+        .user-item:hover { background: rgba(0,212,255,0.1); transform: translateX(4px); }
+        .user-item.active { background: rgba(0,212,255,0.15); border-color: #00d4ff; }
+        .user-name { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+        .user-email { font-size: 11px; color: #8a92b0; margin-top: 4px; }
+        .user-balance { font-size: 12px; color: #00d4ff; margin-top: 6px; }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 20px;
+        }
+        .status-online {
+            background: rgba(0,230,118,0.2);
+            color: #00e676;
+        }
+        .status-offline {
+            background: rgba(138,146,176,0.2);
+            color: #8a92b0;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .status-dot.online {
+            background: #00e676;
+            box-shadow: 0 0 5px #00e676;
+            animation: pulse-green 1.5s infinite;
+        }
+        @keyframes pulse-green {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.6; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+        
+        .user-unread-count {
+            background: #ff4757;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 20px;
+        }
+        .last-seen { font-size: 10px; color: #5a6280; margin-top: 4px; }
+        
+        .chat-section {
+            background: rgba(18,25,55,0.6); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 24px;
+            display: flex; flex-direction: column; overflow: hidden;
+        }
+        .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .chat-with { font-size: 18px; font-weight: 700; }
+        .chat-with span { color: #00d4ff; }
+        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; }
+        .chat-message { margin-bottom: 20px; display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .chat-message.user { align-items: flex-start; }
+        .chat-message.admin { align-items: flex-end; }
+        .message-bubble {
+            max-width: 70%; padding: 12px 18px; border-radius: 20px; font-size: 14px; line-height: 1.4;
+        }
+        .chat-message.user .message-bubble { background: rgba(255,255,255,0.1); border-bottom-left-radius: 4px; }
+        .chat-message.admin .message-bubble { background: linear-gradient(135deg, #00d4ff, #0099cc); border-bottom-right-radius: 4px; color: #000; }
+        .chat-image {
+            max-width: 250px;
+            max-height: 200px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+        .message-sender { font-size: 11px; color: #8a92b0; margin-bottom: 4px; }
+        .message-time { font-size: 10px; color: #5a6280; margin-top: 4px; }
+        .chat-input-area { 
+            padding: 20px; 
+            border-top: 1px solid rgba(255,255,255,0.1); 
+            display: flex; 
+            gap: 12px;
+            align-items: center;
+        }
+        .chat-input-area input {
+            flex: 1; padding: 14px 18px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 40px; color: white; font-size: 14px;
+        }
+        .chat-input-area input:focus { outline: none; border-color: #00d4ff; }
+        .chat-input-area button {
+            padding: 14px 28px; background: linear-gradient(135deg, #00d4ff, #0099cc);
+            border: none; border-radius: 40px; color: white; cursor: pointer; font-weight: 600;
+        }
+        .attach-btn {
+            background: rgba(255,255,255,0.1);
+            padding: 12px 16px;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .attach-btn:hover {
+            background: rgba(0,212,255,0.3);
+            transform: scale(1.05);
+        }
+        .image-preview {
+            margin-top: 8px;
+            padding: 10px;
+            position: relative;
+            display: inline-block;
+            background: rgba(0,0,0,0.5);
+            border-radius: 8px;
+        }
+        .preview-img {
+            max-width: 80px;
+            max-height: 60px;
+            border-radius: 8px;
+        }
+        .remove-image {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #ff4757;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 10px;
+        }
+        .no-user-selected { text-align: center; color: #5a6280; margin-top: 50px; }
+        .empty-state { text-align: center; padding: 50px; color: #5a6280; }
+        .empty-state i { font-size: 48px; margin-bottom: 16px; opacity: 0.5; }
+        
+        .image-viewer {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            cursor: pointer;
+        }
+        .image-viewer.active { display: flex; }
+        .image-viewer img { max-width: 90%; max-height: 90%; border-radius: 10px; }
+        .close-viewer {
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            font-size: 40px;
+            cursor: pointer;
+            color: white;
+        }
+        
+        .users-list::-webkit-scrollbar, .chat-messages::-webkit-scrollbar { width: 4px; }
+        .users-list::-webkit-scrollbar-track, .chat-messages::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
+        .users-list::-webkit-scrollbar-thumb, .chat-messages::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 4px; }
+        
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; height: auto; } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo"><h1>CRYPTOTRADE <span style="color:#00d4ff;">SUPPORT</span></h1></div>
+            <div class="nav-buttons">
+                <a href="admin.html" class="nav-btn active">💬 Chat <span id="chatBadge" class="nav-badge" style="display:none;">0</span></a>
+                <a href="admin-deposits.html" class="nav-btn">💰 Deposits <span id="depositsBadge" class="nav-badge" style="display:none;">0</span></a>
+                <a href="admin-withdrawals.html" class="nav-btn">💸 Withdrawals <span id="withdrawalsBadge" class="nav-badge" style="display:none;">0</span></a>
+                <button class="nav-btn" onclick="logout()">🚪 Logout</button>
+            </div>
+        </div>
+
+        <div class="main-grid">
+            <div class="users-section">
+                <div class="section-title"><i class="fas fa-users"></i> Users</div>
+                
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search by name or email..." onkeyup="filterUsers()">
+                    <i class="fas fa-times-circle clear-search" id="clearSearch" onclick="clearSearch()" style="display:none;"></i>
+                </div>
+                
+                <div class="filter-buttons">
+                    <button class="filter-btn active" data-filter="all" onclick="setFilter('all')">All Users</button>
+                    <button class="filter-btn" data-filter="online" onclick="setFilter('online')">🟢 Online</button>
+                    <button class="filter-btn" data-filter="offline" onclick="setFilter('offline')">⚫ Offline</button>
+                    <button class="filter-btn" data-filter="unread" onclick="setFilter('unread')">📩 Unread</button>
+                </div>
+                
+                <div id="usersList" class="users-list">
+                    <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading users...</p></div>
+                </div>
+            </div>
+
+            <div class="chat-section">
+                <div class="chat-header">
+                    <div class="chat-with">Chatting with: <span id="selectedUserName">Select a user</span></div>
+                </div>
+                <div id="chatMessages" class="chat-messages">
+                    <div class="no-user-selected">
+                        <i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i>
+                        <p style="margin-top:16px;">Select a user to start chatting</p>
+                    </div>
+                </div>
+                <div class="chat-input-area">
+                    <div class="attach-btn" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-image"></i>
+                    </div>
+                    <input type="text" id="chatInput" placeholder="Type your reply..." onkeypress="if(event.key==='Enter') sendAdminReply()">
+                    <button onclick="sendAdminReply()"><i class="fas fa-paper-plane"></i> Send</button>
+                </div>
+                <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="uploadAdminImage()">
+                <div id="imagePreview" style="display:none;">
+                    <div class="image-preview">
+                        <img id="previewImg" class="preview-img">
+                        <div class="remove-image" onclick="cancelImage()">×</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="imageViewer" class="image-viewer" onclick="closeImageViewer()">
+        <span class="close-viewer" onclick="closeImageViewer()">&times;</span>
+        <img id="viewerImg" src="">
+    </div>
+
+    <script>
+        const SERVER_URL = 'http://localhost:5000';
+        let selectedUserId = null;
+        let selectedUserName = null;
+        let allUsers = [];
+        let filteredUsers = [];
+        let currentFilter = 'all';
+        let currentSearchTerm = '';
+        let unreadCounts = {};
+        let totalUnreadMessages = 0;
+        let pendingDepositsCount = 0;
+        let pendingWithdrawalsCount = 0;
+        
+        function checkAdmin() {
+            if (!localStorage.getItem('isAdmin')) {
+                window.location.href = 'admin-login.html';
+            }
+        }
+        
+        // Helper function to fix image URL
+        function fixImageUrl(url) {
+            if (!url) return '';
+            // If it's already a full URL, return as is
+            if (url.startsWith('http://') || url.startsWith('https://')) {
+                return url;
+            }
+            // Remove leading slashes and add server URL
+            const cleanUrl = url.replace(/^\/+/, '');
+            return `${SERVER_URL}/${cleanUrl}`;
+        }
+        
+        // Image preview functions
+        function cancelImage() {
+            document.getElementById('imagePreview').style.display = 'none';
+            document.getElementById('fileInput').value = '';
+        }
+        
+        function previewImage(file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                document.getElementById('previewImg').src = e.target.result;
+                document.getElementById('imagePreview').style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        async function uploadAdminImage() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            
+            if (!file || !selectedUserId) {
+                if (!selectedUserId) alert('Please select a user first');
+                return;
+            }
+            
+            if (!file.type.startsWith('image/')) {
+                alert('Please select an image file');
+                return;
+            }
+            
+            if (file.size > 5 * 1024 * 1024) {
+                alert('Image too large. Max 5MB');
+                return;
+            }
+            
+            previewImage(file);
+            
+            const formData = new FormData();
+            formData.append('image', file);
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/api/upload-image`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const imageUrl = fixImageUrl(data.imageUrl);
+                    
+                    // Send image as message
+                    await fetch(`${SERVER_URL}/api/admin/reply`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                            userId: selectedUserId, 
+                            text: imageUrl,
+                            adminName: 'Support' 
+                        })
+                    });
+                    
+                    cancelImage();
+                    await loadUserMessages(selectedUserId);
+                    await loadUnreadCounts();
+                    applyFilters();
+                } else {
+                    alert('Upload failed');
+                }
+            } catch (error) {
+                console.error('Error uploading image:', error);
+                alert('Error uploading image');
+            }
+        }
+        
+        async function loadUsers() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/admin/users-with-status`);
+                if (response.ok) {
+                    const data = await response.json();
+                    allUsers = data.users || [];
+                    console.log('Users loaded:', allUsers.length);
+                } else {
+                    const fallbackRes = await fetch(`${SERVER_URL}/api/admin/users`);
+                    if (fallbackRes.ok) {
+                        const fallbackData = await fallbackRes.json();
+                        allUsers = fallbackData.users || [];
+                        allUsers.forEach(user => {
+                            user.status = 'offline';
+                            user.lastSeen = new Date().toISOString();
+                        });
+                    }
+                }
+                
+                await loadUnreadCounts();
+                applyFilters();
+            } catch (error) {
+                console.error('Error loading users:', error);
+                document.getElementById('usersList').innerHTML = '<div class="empty-state"><i class="fas fa-exclamation-triangle"></i><p>Error loading users</p></div>';
+            }
+        }
+        
+        async function loadUnreadCounts() {
+            try {
+                totalUnreadMessages = 0;
+                unreadCounts = {};
+                
+                for (const user of allUsers) {
+                    try {
+                        const response = await fetch(`${SERVER_URL}/api/admin/messages/${user.id}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            const messages = data.messages || [];
+                            const unreadCount = messages.filter(m => m.sender === 'user' && !m.adminRead).length;
+                            if (unreadCount > 0) {
+                                unreadCounts[user.id] = unreadCount;
+                                totalUnreadMessages += unreadCount;
+                            }
+                        }
+                    } catch (e) {
+                        console.error(`Error for user ${user.id}:`, e);
+                    }
+                }
+                updateChatBadge();
+            } catch (error) {
+                console.error('Error loading unread counts:', error);
+            }
+        }
+        
+        async function checkPendingDeposits() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/admin/deposits`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const deposits = data.deposits || [];
+                    pendingDepositsCount = deposits.filter(d => d.status === 'pending').length;
+                    const badge = document.getElementById('depositsBadge');
+                    if (badge) {
+                        if (pendingDepositsCount > 0) {
+                            badge.style.display = 'flex';
+                            badge.innerText = pendingDepositsCount > 99 ? '99+' : pendingDepositsCount;
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                }
+            } catch (error) { console.error('Error checking deposits:', error); }
+        }
+        
+        async function checkPendingWithdrawals() {
+            try {
+                const response = await fetch(`${SERVER_URL}/api/admin/withdrawals`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const withdrawals = data.withdrawals || [];
+                    pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'pending').length;
+                    const badge = document.getElementById('withdrawalsBadge');
+                    if (badge) {
+                        if (pendingWithdrawalsCount > 0) {
+                            badge.style.display = 'flex';
+                            badge.innerText = pendingWithdrawalsCount > 99 ? '99+' : pendingWithdrawalsCount;
+                        } else {
+                            badge.style.display = 'none';
+                        }
+                    }
+                }
+            } catch (error) { console.error('Error checking withdrawals:', error); }
+        }
+        
+        function updateChatBadge() {
+            const badge = document.getElementById('chatBadge');
+            if (badge) {
+                if (totalUnreadMessages > 0) {
+                    badge.style.display = 'flex';
+                    badge.innerText = totalUnreadMessages > 99 ? '99+' : totalUnreadMessages;
+                    document.title = `(${totalUnreadMessages}) Admin Panel`;
+                } else {
+                    badge.style.display = 'none';
+                    document.title = 'Admin Panel';
+                }
+            }
+        }
+        
+        function applyFilters() {
+            let filtered = [...allUsers];
+            
+            if (currentSearchTerm) {
+                const term = currentSearchTerm.toLowerCase();
+                filtered = filtered.filter(user => 
+                    user.name.toLowerCase().includes(term) || 
+                    user.email.toLowerCase().includes(term)
+                );
+            }
+            
+            if (currentFilter === 'online') {
+                filtered = filtered.filter(user => user.status === 'online');
+            } else if (currentFilter === 'offline') {
+                filtered = filtered.filter(user => user.status === 'offline');
+            } else if (currentFilter === 'unread') {
+                filtered = filtered.filter(user => (unreadCounts[user.id] || 0) > 0);
+            }
+            
+            filteredUsers = filtered;
+            displayUsers();
+        }
+        
+        function setFilter(filter) {
+            currentFilter = filter;
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            const activeBtn = document.querySelector(`.filter-btn[data-filter="${filter}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+            applyFilters();
+        }
+        
+        function filterUsers() {
+            currentSearchTerm = document.getElementById('searchInput').value;
+            const clearBtn = document.getElementById('clearSearch');
+            if (clearBtn) {
+                clearBtn.style.display = currentSearchTerm ? 'block' : 'none';
+            }
+            applyFilters();
+        }
+        
+        function clearSearch() {
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) searchInput.value = '';
+            currentSearchTerm = '';
+            const clearBtn = document.getElementById('clearSearch');
+            if (clearBtn) clearBtn.style.display = 'none';
+            applyFilters();
+        }
+        
+        function displayUsers() {
+            const usersDiv = document.getElementById('usersList');
+            
+            if (!usersDiv) return;
+            
+            if (filteredUsers.length === 0) {
+                let msg = 'No users found';
+                if (currentFilter === 'online') msg = 'No online users';
+                if (currentFilter === 'offline') msg = 'No offline users';
+                if (currentFilter === 'unread') msg = 'No unread messages';
+                usersDiv.innerHTML = `<div class="empty-state"><i class="fas fa-user-slash"></i><p>${msg}</p></div>`;
+                return;
+            }
+            
+            usersDiv.innerHTML = filteredUsers.map(user => {
+                const unread = unreadCounts[user.id] || 0;
+                const isOnline = user.status === 'online';
+                const lastSeen = user.lastSeen ? new Date(user.lastSeen).toLocaleString() : 'Never';
+                
+                return `
+                    <div class="user-item ${selectedUserId === user.id ? 'active' : ''}" onclick="selectUser(${user.id}, '${escapeHtml(user.name)}')">
+                        <div class="user-name">
+                            <i class="fas fa-user-circle"></i> ${escapeHtml(user.name)}
+                            <span class="status-indicator ${isOnline ? 'status-online' : 'status-offline'}">
+                                <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
+                                ${isOnline ? 'Online' : 'Offline'}
+                            </span>
+                            ${unread > 0 ? `<span class="user-unread-count">${unread}</span>` : ''}
+                        </div>
+                        <div class="user-email">${escapeHtml(user.email)}</div>
+                        <div class="user-balance">💰 Demo: $${user.demoBalance} | Real: $${user.realBalance}</div>
+                        ${!isOnline ? `<div class="last-seen">Last seen: ${lastSeen}</div>` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function selectUser(userId, userName) {
+            selectedUserId = userId;
+            selectedUserName = userName;
+            const selectedNameSpan = document.getElementById('selectedUserName');
+            if (selectedNameSpan) selectedNameSpan.innerHTML = escapeHtml(userName);
+            
+            await markMessagesAsRead(userId);
+            await loadUserMessages(userId);
+            await loadUnreadCounts();
+            applyFilters();
+        }
+        
+        async function markMessagesAsRead(userId) {
+            try {
+                await fetch(`${SERVER_URL}/api/messages/mark-admin-read`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userId })
+                });
+            } catch (error) { console.error('Error marking messages as read:', error); }
+        }
+        
+        async function loadUserMessages(userId) {
+            const chatDiv = document.getElementById('chatMessages');
+            if (chatDiv) {
+                chatDiv.innerHTML = '<div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Loading messages...</p></div>';
+            }
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/api/admin/messages/${userId}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    displayMessages(data.messages || []);
+                } else {
+                    displayMessages([]);
+                }
+            } catch (error) {
+                console.error('Error loading messages:', error);
+                displayMessages([]);
+            }
+        }
+        
+        function viewImage(url) {
+            const viewer = document.getElementById('imageViewer');
+            const img = document.getElementById('viewerImg');
+            if (viewer && img) {
+                const fixedUrl = fixImageUrl(url);
+                console.log('Viewing image:', fixedUrl);
+                img.src = fixedUrl;
+                viewer.classList.add('active');
+            }
+        }
+        
+        function closeImageViewer() {
+            const viewer = document.getElementById('imageViewer');
+            if (viewer) viewer.classList.remove('active');
+        }
+        
+        function isImageUrl(text) {
+            if (!text) return false;
+            // Check if text is a URL that points to an image
+            return (text.startsWith('http') && (text.includes('.jpg') || text.includes('.png') || text.includes('.jpeg') || text.includes('.gif') || text.includes('uploads/'))) ||
+                   text.includes('/uploads/');
+        }
+        
+        function displayMessages(messages) {
+            const chatDiv = document.getElementById('chatMessages');
+            if (!chatDiv) return;
+            
+            if (!messages || messages.length === 0) {
+                chatDiv.innerHTML = '<div class="no-user-selected"><i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i><p>No messages yet</p></div>';
+                return;
+            }
+            
+            // Sort messages by timestamp (oldest first)
+            const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            chatDiv.innerHTML = sortedMessages.map(msg => {
+                // Check if message contains an image URL
+                let imageUrl = null;
+                let messageText = msg.text;
+                
+                if (msg.hasImage && msg.imageUrl) {
+                    imageUrl = msg.imageUrl;
+                } else if (isImageUrl(msg.text)) {
+                    imageUrl = msg.text;
+                    messageText = '📷 Image';
+                }
+                
+                if (imageUrl) {
+                    const fixedUrl = fixImageUrl(imageUrl);
+                    return `
+                        <div class="chat-message ${msg.sender}">
+                            <div class="message-sender">${msg.sender === 'user' ? selectedUserName : 'Admin (You)'}</div>
+                            <div class="message-bubble">
+                                <img src="${fixedUrl}" class="chat-image" onclick="viewImage('${fixedUrl}')" alt="Image" 
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/200x150?text=Image+Not+Found';">
+                            </div>
+                            <div class="message-time">${new Date(msg.timestamp).toLocaleString()}</div>
+                        </div>
+                    `;
+                }
+                return `
+                    <div class="chat-message ${msg.sender}">
+                        <div class="message-sender">${msg.sender === 'user' ? selectedUserName : 'Admin (You)'}</div>
+                        <div class="message-bubble">${escapeHtml(messageText)}</div>
+                        <div class="message-time">${new Date(msg.timestamp).toLocaleString()}</div>
+                    </div>
+                `;
+            }).join('');
+            chatDiv.scrollTop = chatDiv.scrollHeight;
+        }
+        
+        async function sendAdminReply() {
+            const input = document.getElementById('chatInput');
+            const text = input ? input.value.trim() : '';
+            if (!text || !selectedUserId) {
+                if (!selectedUserId) alert('Select a user first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${SERVER_URL}/api/admin/reply`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: selectedUserId, text, adminName: 'Support' })
+                });
+                
+                if (response.ok) {
+                    if (input) input.value = '';
+                    await loadUserMessages(selectedUserId);
+                    await loadUnreadCounts();
+                    applyFilters();
+                } else {
+                    alert('Failed to send reply');
+                }
+            } catch (error) {
+                console.error('Error sending reply:', error);
+                alert('Server error');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function logout() {
+            localStorage.removeItem('isAdmin');
+            window.location.href = 'admin-login.html';
+        }
+        
+        // Auto-refresh every 5 seconds
+        setInterval(() => {
+            if (selectedUserId) loadUserMessages(selectedUserId);
+            loadUsers();
+            checkPendingDeposits();
+            checkPendingWithdrawals();
+        }, 5000);
+        
+        checkAdmin();
+        loadUsers();
+        checkPendingDeposits();
+        checkPendingWithdrawals();
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeImageViewer();
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoTrade - Login & Signup</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #0a0e27 0%, #1a1a3e 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: rgba(18, 25, 55, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            width: 500px;
+            max-width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .tabs {
+            display: flex;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 18px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #8a92b0;
+            border: none;
+            background: transparent;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            background: rgba(0,212,255,0.2);
+            color: #00d4ff;
+            border-bottom: 2px solid #00d4ff;
+        }
+
+        .form-container {
+            padding: 32px;
+        }
+
+        .form {
+            display: none;
+        }
+
+        .form.active {
+            display: block;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #fff;
+            font-size: 24px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #8a92b0;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .input-group label i {
+            margin-right: 8px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px 16px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            font-size: 14px;
+            color: white;
+            outline: none;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            border-color: #00d4ff;
+        }
+
+        .input-group .hint {
+            font-size: 11px;
+            color: #5a6280;
+            margin-top: 5px;
+        }
+
+        .info-box {
+            background: rgba(0,212,255,0.1);
+            padding: 15px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            border-left: 3px solid #00d4ff;
+        }
+
+        .info-box p {
+            font-size: 12px;
+            color: #8a92b0;
+            margin: 5px 0;
+        }
+
+        .referral-banner {
+            background: linear-gradient(135deg, rgba(240,147,251,0.2), rgba(245,87,108,0.2));
+            border-left: 3px solid #f093fb;
+            margin-bottom: 20px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { border-left-color: #f093fb; }
+            50% { border-left-color: #00e676; }
+            100% { border-left-color: #f093fb; }
+        }
+
+        .referral-banner p {
+            color: #fff;
+        }
+
+        .referral-banner strong {
+            color: #00e676;
+        }
+
+        .referral-banner-valid {
+            background: linear-gradient(135deg, rgba(0,230,118,0.2), rgba(0,212,255,0.2));
+            border-left: 3px solid #00e676;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,212,255,0.3);
+        }
+
+        .btn-validate {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            margin-top: 10px;
+            font-size: 14px;
+            padding: 10px;
+        }
+
+        .btn-validate:hover {
+            box-shadow: 0 4px 15px rgba(139,92,246,0.3);
+        }
+
+        .message {
+            margin-top: 16px;
+            text-align: center;
+            font-size: 13px;
+            min-height: 40px;
+        }
+
+        .error { color: #ff4757; }
+        .success { color: #00e676; }
+        .info { color: #00d4ff; }
+
+        .pin-input {
+            letter-spacing: 5px;
+            font-size: 18px;
+            text-align: center;
+        }
+
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .loading-overlay.active {
+            display: flex;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .loading-text {
+            color: white;
+            font-size: 14px;
+        }
+
+        .referral-code-input {
+            background: rgba(240,147,251,0.1);
+            border-color: rgba(240,147,251,0.3);
+        }
+        .referral-code-input:focus {
+            border-color: #f093fb;
+        }
+
+        .valid-icon {
+            position: absolute;
+            right: 15px;
+            top: 42px;
+            color: #00e676;
+            font-size: 18px;
+        }
+
+        .input-group {
+            position: relative;
+        }
+
+        .referral-status {
+            font-size: 11px;
+            margin-top: 5px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .referral-status.valid {
+            background: rgba(0,230,118,0.2);
+            color: #00e676;
+        }
+
+        .referral-status.invalid {
+            background: rgba(255,71,87,0.2);
+            color: #ff4757;
+        }
+
+        .referral-status.checking {
+            background: rgba(0,212,255,0.2);
+            color: #00d4ff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('login')">Login</button>
+            <button class="tab" onclick="switchTab('signup')">Sign Up</button>
+        </div>
+
+        <div class="form-container">
+            <div id="loginForm" class="form active">
+                <h2>Welcome Back</h2>
+                <div class="input-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="loginEmail" placeholder="Enter your email">
+                </div>
+                <div class="input-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="loginPassword" placeholder="Enter your password">
+                </div>
+                <button class="btn" onclick="handleLogin()">Login</button>
+                <div id="loginMessage" class="message"></div>
+            </div>
+
+            <div id="signupForm" class="form">
+                <h2>Create Account</h2>
+                
+                <!-- REFERRAL BANNER (shown when referral code is present and valid) -->
+                <div id="referralBanner" class="info-box referral-banner" style="display: none;">
+                    <p>🎁 <strong>You've been referred!</strong></p>
+                    <p>✨ <strong>You'll receive 50 bonus points</strong> automatically upon signup!</p>
+                    <p>🎯 Your referrer will get 100 points when you complete your first trade</p>
+                    <p>💰 <strong>100 points = $1</strong> real balance conversion</p>
+                </div>
+                
+                <div class="info-box">
+                    <p>🎮 <strong>One account, two modes:</strong></p>
+                    <p>• <strong>Demo Mode</strong> - Start with $10,000 virtual money</p>
+                    <p>• <strong>Real Mode</strong> - Switch anytime. Deposit to start real trading</p>
+                    <p>🎁 <strong>Referral Program:</strong> Invite friends and earn points!</p>
+                </div>
+                
+                <div class="input-group">
+                    <label><i class="fas fa-user"></i> Full Name</label>
+                    <input type="text" id="signupName" placeholder="Enter your full name">
+                </div>
+                
+                <div class="input-group">
+                    <label><i class="fas fa-envelope"></i> Email</label>
+                    <input type="email" id="signupEmail" placeholder="Enter your email">
+                </div>
+                
+                <div class="input-group">
+                    <label><i class="fas fa-lock"></i> Password</label>
+                    <input type="password" id="signupPassword" placeholder="Create a password (min 6 characters)">
+                </div>
+                
+                <div class="input-group">
+                    <label><i class="fas fa-lock"></i> Confirm Password</label>
+                    <input type="password" id="signupConfirmPassword" placeholder="Confirm your password">
+                </div>
+                
+                <div class="input-group">
+                    <label><i class="fas fa-key"></i> Withdraw PIN</label>
+                    <input type="password" id="withdrawPin" class="pin-input" maxlength="6" placeholder="••••••">
+                    <div class="hint">6-digit PIN for withdrawals and trades (keep it safe!)</div>
+                </div>
+                
+                <div class="input-group">
+                    <label><i class="fas fa-key"></i> Confirm Withdraw PIN</label>
+                    <input type="password" id="confirmWithdrawPin" class="pin-input" maxlength="6" placeholder="••••••">
+                </div>
+                
+                <!-- REFERRAL CODE FIELD WITH VALIDATION -->
+                <div class="input-group">
+                    <label><i class="fas fa-gift"></i> Referral Code (Optional)</label>
+                    <input type="text" id="referralCode" class="referral-code-input" placeholder="Enter referral code if you have one" style="text-transform: uppercase;" oninput="validateReferralCode()">
+                    <div class="hint">Enter a referral code to get 50 bonus points after signup!</div>
+                    <div id="referralStatus" style="margin-top: 5px;"></div>
+                </div>
+                
+                <button class="btn" onclick="handleSignup()">Sign Up</button>
+                <div id="signupMessage" class="message"></div>
+                
+                <div class="info-box" style="margin-top: 20px; background: rgba(139,92,246,0.1); border-left-color: #8b5cf6;">
+                    <p><i class="fas fa-info-circle"></i> <strong>No referral code?</strong> No problem!</p>
+                    <p>You can still earn points by inviting friends after you sign up.</p>
+                    <p>Share your unique referral code from your dashboard!</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <div class="loading-text">Creating your account...</div>
+    </div>
+
+    <script>
+        // ============ REFERRAL CODE HANDLING ============
+        
+        // Variables
+        let isValidReferral = false;
+        let validatedReferrerName = '';
+        let validationTimeout = null;
+        
+        // Get referral code from URL parameter ?ref=CODE
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCodeFromUrl = urlParams.get('ref');
+        const referralInput = document.getElementById('referralCode');
+        
+        // Auto-fill from URL if present
+        if (referralCodeFromUrl && referralInput) {
+            referralInput.value = referralCodeFromUrl.toUpperCase();
+            console.log('🎁 Referral code auto-filled from URL:', referralCodeFromUrl);
+            // Auto-validate after a short delay
+            setTimeout(() => validateReferralCode(), 500);
+        }
+        
+        // Validate referral code with server
+        async function validateReferralCode() {
+            const code = referralInput.value.trim().toUpperCase();
+            const statusDiv = document.getElementById('referralStatus');
+            const banner = document.getElementById('referralBanner');
+            
+            if (!code) {
+                statusDiv.innerHTML = '';
+                banner.style.display = 'none';
+                isValidReferral = false;
+                validatedReferrerName = '';
+                return;
+            }
+            
+            // Show checking status
+            statusDiv.innerHTML = '<span class="referral-status checking"><i class="fas fa-spinner fa-pulse"></i> Checking referral code...</span>';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/referral/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ referralCode: code })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.valid) {
+                    isValidReferral = true;
+                    validatedReferrerName = data.referrerName || 'a friend';
+                    statusDiv.innerHTML = `<span class="referral-status valid"><i class="fas fa-check-circle"></i> ✅ Valid referral code from ${validatedReferrerName}! You'll get 50 bonus points!</span>`;
+                    
+                    // Show the referral banner with animation
+                    banner.style.display = 'block';
+                    banner.classList.add('referral-banner-valid');
+                    
+                    // Add celebratory effect
+                    referralInput.style.borderColor = '#00e676';
+                    referralInput.style.boxShadow = '0 0 10px rgba(0,230,118,0.3)';
+                    
+                    console.log('✅ Referral code validated:', code, 'from:', validatedReferrerName);
+                } else {
+                    isValidReferral = false;
+                    validatedReferrerName = '';
+                    statusDiv.innerHTML = `<span class="referral-status invalid"><i class="fas fa-exclamation-triangle"></i> ❌ Invalid referral code. Please check and try again.</span>`;
+                    banner.style.display = 'none';
+                    referralInput.style.borderColor = '#ff4757';
+                    referralInput.style.boxShadow = 'none';
+                    
+                    console.log('❌ Invalid referral code:', code);
+                }
+            } catch (error) {
+                console.error('Error validating referral:', error);
+                statusDiv.innerHTML = '<span class="referral-status invalid"><i class="fas fa-exclamation-triangle"></i> ⚠️ Could not validate code. Please try again.</span>';
+                isValidReferral = false;
+                banner.style.display = 'none';
+            }
+        }
+        
+        // Clear validation styling when user starts typing
+        referralInput?.addEventListener('input', function() {
+            // Reset styling
+            this.style.borderColor = '';
+            this.style.boxShadow = '';
+            
+            // Debounce validation
+            if (validationTimeout) clearTimeout(validationTimeout);
+            validationTimeout = setTimeout(() => validateReferralCode(), 500);
+        });
+        
+        // ============ PIN INPUT RESTRICTIONS ============
+        document.getElementById('withdrawPin')?.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        });
+        document.getElementById('confirmWithdrawPin')?.addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        });
+
+        function switchTab(tab) {
+            const tabs = document.querySelectorAll('.tab');
+            tabs.forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            const loginForm = document.getElementById('loginForm');
+            const signupForm = document.getElementById('signupForm');
+
+            if (tab === 'login') {
+                loginForm.classList.add('active');
+                signupForm.classList.remove('active');
+            } else {
+                loginForm.classList.remove('active');
+                signupForm.classList.add('active');
+                
+                // Re-validate referral code when switching to signup tab
+                if (referralInput && referralInput.value.trim()) {
+                    setTimeout(() => validateReferralCode(), 100);
+                }
+            }
+
+            document.getElementById('loginMessage').innerHTML = '';
+            document.getElementById('signupMessage').innerHTML = '';
+        }
+
+        function showLoading(message) {
+            const overlay = document.getElementById('loadingOverlay');
+            const text = document.querySelector('.loading-text');
+            text.innerHTML = message || 'Processing...';
+            overlay.classList.add('active');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const messageDiv = document.getElementById('loginMessage');
+
+            if (!email || !password) {
+                messageDiv.innerHTML = '<span class="error">Please fill in all fields</span>';
+                return;
+            }
+
+            showLoading('Logging in...');
+
+            try {
+                const response = await fetch('http://localhost:5000/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userEmail', email);
+                    localStorage.setItem('userName', data.user.name);
+                    messageDiv.innerHTML = '<span class="success">Login successful! Redirecting...</span>';
+                    setTimeout(() => {
+                        window.location.href = 'dashboard.html';
+                    }, 1500);
+                } else {
+                    hideLoading();
+                    messageDiv.innerHTML = `<span class="error">${data.message || 'Login failed'}</span>`;
+                }
+            } catch (error) {
+                hideLoading();
+                messageDiv.innerHTML = '<span class="error">Cannot connect to server. Make sure server is running on port 5000</span>';
+            }
+        }
+
+        async function handleSignup() {
+            const name = document.getElementById('signupName').value;
+            const email = document.getElementById('signupEmail').value;
+            const password = document.getElementById('signupPassword').value;
+            const confirmPassword = document.getElementById('signupConfirmPassword').value;
+            const withdrawPin = document.getElementById('withdrawPin').value;
+            const confirmWithdrawPin = document.getElementById('confirmWithdrawPin').value;
+            const referralCode = document.getElementById('referralCode').value.trim().toUpperCase();
+            const messageDiv = document.getElementById('signupMessage');
+
+            // Validation
+            if (!name || !email || !password || !confirmPassword || !withdrawPin || !confirmWithdrawPin) {
+                messageDiv.innerHTML = '<span class="error">Please fill in all fields</span>';
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                messageDiv.innerHTML = '<span class="error">Passwords do not match</span>';
+                return;
+            }
+
+            if (password.length < 6) {
+                messageDiv.innerHTML = '<span class="error">Password must be at least 6 characters</span>';
+                return;
+            }
+
+            if (withdrawPin !== confirmWithdrawPin) {
+                messageDiv.innerHTML = '<span class="error">Withdraw PINs do not match</span>';
+                return;
+            }
+
+            if (withdrawPin.length !== 6 || !/^\d{6}$/.test(withdrawPin)) {
+                messageDiv.innerHTML = '<span class="error">Withdraw PIN must be exactly 6 digits</span>';
+                return;
+            }
+
+            // If referral code was provided but invalid, show warning but allow signup
+            if (referralCode && !isValidReferral) {
+                const confirmSignup = confirm('The referral code you entered appears to be invalid. Would you still like to sign up without the referral bonus?');
+                if (!confirmSignup) {
+                    return;
+                }
+            }
+
+            showLoading('Creating your account...');
+
+            const signupData = { name, email, password, withdrawPin };
+            if (referralCode && isValidReferral) {
+                signupData.referralCode = referralCode;
+                console.log('📨 Sending valid referral code:', referralCode);
+            }
+
+            try {
+                const signupResponse = await fetch('http://localhost:5000/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(signupData)
+                });
+
+                const signupDataResponse = await signupResponse.json();
+
+                if (signupResponse.ok) {
+                    let successMsg = '✅ Account created successfully! ';
+                    if (referralCode && isValidReferral) {
+                        successMsg += '🎉 You received 50 referral bonus points! ';
+                    }
+                    successMsg += 'Redirecting to dashboard...';
+                    messageDiv.innerHTML = `<span class="success">${successMsg}</span>`;
+                    
+                    // Auto login
+                    const loginResponse = await fetch('http://localhost:5000/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+
+                    const loginData = await loginResponse.json();
+
+                    if (loginResponse.ok) {
+                        localStorage.setItem('token', loginData.token);
+                        localStorage.setItem('userEmail', email);
+                        localStorage.setItem('userName', name);
+                        setTimeout(() => {
+                            window.location.href = 'dashboard.html';
+                        }, 2000);
+                    } else {
+                        hideLoading();
+                        messageDiv.innerHTML = '<span class="success">Account created! Please login manually.</span>';
+                        setTimeout(() => {
+                            switchTab('login');
+                            document.getElementById('loginEmail').value = email;
+                        }, 2000);
+                    }
+                } else {
+                    hideLoading();
+                    messageDiv.innerHTML = `<span class="error">${signupDataResponse.message || 'Signup failed'}</span>`;
+                }
+            } catch (error) {
+                hideLoading();
+                console.error('Signup error:', error);
+                messageDiv.innerHTML = '<span class="error">Cannot connect to server. Make sure server is running on port 5000</span>';
+            }
+        }
+
+        // Enter key handlers
+        document.getElementById('loginPassword')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleLogin();
+        });
+        document.getElementById('confirmWithdrawPin')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') handleSignup();
+        });
+        
+        // Auto-focus on email field when switching to login
+        document.querySelector('.tab:first-child')?.addEventListener('click', function() {
+            setTimeout(() => document.getElementById('loginEmail')?.focus(), 100);
+        });
+        
+        document.querySelector('.tab:last-child')?.addEventListener('click', function() {
+            setTimeout(() => document.getElementById('signupName')?.focus(), 100);
+        });
+    </script>
+</body>
+</html>

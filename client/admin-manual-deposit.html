@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manual Deposit - Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #0a0e27; color: #fff; }
+        .container { max-width: 600px; margin: 0 auto; padding: 40px 20px; }
+        .card {
+            background: rgba(18,25,55,0.8); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.08); border-radius: 24px;
+            padding: 32px;
+        }
+        h2 { margin-bottom: 24px; display: flex; align-items: center; gap: 10px; }
+        .input-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #8a92b0; font-size: 13px; }
+        input, textarea {
+            width: 100%; padding: 14px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 12px;
+            color: white; font-size: 14px;
+        }
+        input:focus, textarea:focus { outline: none; border-color: #00d4ff; }
+        button {
+            width: 100%; padding: 14px; background: linear-gradient(135deg, #00e676, #00b359);
+            border: none; border-radius: 12px; color: white; font-weight: 600;
+            cursor: pointer; font-size: 16px; transition: all 0.3s;
+        }
+        button:hover { transform: translateY(-2px); }
+        .result { margin-top: 20px; padding: 16px; border-radius: 12px; display: none; }
+        .result.success { background: rgba(0,230,118,0.1); border: 1px solid #00e676; display: block; }
+        .result.error { background: rgba(255,71,87,0.1); border: 1px solid #ff4757; display: block; }
+        .nav-buttons { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+        .nav-btn {
+            padding: 10px 20px; background: rgba(255,255,255,0.08);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 40px;
+            color: white; text-decoration: none; font-size: 14px;
+        }
+        .nav-btn:hover { background: #00d4ff; color: #000; }
+        .user-info { background: rgba(0,212,255,0.1); padding: 16px; border-radius: 12px; margin-top: 20px; display: none; }
+        .user-info.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="nav-buttons">
+            <a href="admin.html" class="nav-btn">💬 Chat</a>
+            <a href="admin-deposits.html" class="nav-btn">💰 Deposits</a>
+            <a href="admin-withdrawals.html" class="nav-btn">💸 Withdrawals</a>
+            <a href="admin-manual-deposit.html" class="nav-btn" style="background:#00e676; color:#000;">➕ Manual Add</a>
+            <button class="nav-btn" onclick="logout()">🚪 Logout</button>
+        </div>
+        
+        <div class="card">
+            <h2><i class="fas fa-plus-circle"></i> Manual Add Funds</h2>
+            <p style="color:#8a92b0; margin-bottom: 20px; font-size: 14px;">Use this to manually add funds to a user's Real account after they complete a deposit.</p>
+            
+            <div class="input-group">
+                <label><i class="fas fa-envelope"></i> User Email</label>
+                <input type="email" id="userEmail" placeholder="Enter user's email address">
+            </div>
+            
+            <div class="input-group">
+                <label><i class="fas fa-dollar-sign"></i> Amount ($)</label>
+                <input type="number" id="amount" placeholder="Enter amount (Min $10)">
+            </div>
+            
+            <div class="input-group">
+                <label><i class="fas fa-sticky-note"></i> Note (Optional)</label>
+                <textarea id="note" rows="3" placeholder="Add a note about this deposit..."></textarea>
+            </div>
+            
+            <button onclick="addFunds()"><i class="fas fa-check-circle"></i> Add Funds to Account</button>
+            
+            <div id="result" class="result"></div>
+            <div id="userInfo" class="user-info"></div>
+        </div>
+    </div>
+
+    <script>
+        function checkAdmin() {
+            if (!localStorage.getItem('isAdmin')) {
+                window.location.href = 'admin-login.html';
+            }
+        }
+        
+        async function addFunds() {
+            const email = document.getElementById('userEmail').value.trim();
+            const amount = parseFloat(document.getElementById('amount').value);
+            const note = document.getElementById('note').value;
+            const resultDiv = document.getElementById('result');
+            const userInfoDiv = document.getElementById('userInfo');
+            
+            if (!email) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Please enter user email';
+                return;
+            }
+            
+            if (!amount || amount < 10) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Minimum deposit amount is $10';
+                return;
+            }
+            
+            resultDiv.className = 'result';
+            resultDiv.style.display = 'block';
+            resultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/admin/add-funds', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, amount, note })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
+                    
+                    userInfoDiv.className = 'user-info show';
+                    userInfoDiv.innerHTML = `
+                        <h4><i class="fas fa-user-check"></i> Updated Account</h4>
+                        <p><strong>User:</strong> ${data.user.name}</p>
+                        <p><strong>Email:</strong> ${data.user.email}</p>
+                        <p><strong>New Real Balance:</strong> $${data.user.newBalance.toFixed(2)}</p>
+                    `;
+                    
+                    document.getElementById('userEmail').value = '';
+                    document.getElementById('amount').value = '';
+                    document.getElementById('note').value = '';
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ${data.message}`;
+                    userInfoDiv.className = 'user-info';
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Server error. Make sure server is running.';
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('isAdmin');
+            window.location.href = 'admin-login.html';
+        }
+        
+        checkAdmin();
+    </script>
+</body>
+</html>
