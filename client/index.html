@@ -78,6 +78,7 @@
 
         .input-group {
             margin-bottom: 20px;
+            position: relative;
         }
 
         .input-group label {
@@ -172,17 +173,6 @@
             box-shadow: 0 4px 15px rgba(0,212,255,0.3);
         }
 
-        .btn-validate {
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            margin-top: 10px;
-            font-size: 14px;
-            padding: 10px;
-        }
-
-        .btn-validate:hover {
-            box-shadow: 0 4px 15px rgba(139,92,246,0.3);
-        }
-
         .message {
             margin-top: 16px;
             text-align: center;
@@ -241,18 +231,6 @@
             border-color: #f093fb;
         }
 
-        .valid-icon {
-            position: absolute;
-            right: 15px;
-            top: 42px;
-            color: #00e676;
-            font-size: 18px;
-        }
-
-        .input-group {
-            position: relative;
-        }
-
         .referral-status {
             font-size: 11px;
             margin-top: 5px;
@@ -302,7 +280,6 @@
             <div id="signupForm" class="form">
                 <h2>Create Account</h2>
                 
-                <!-- REFERRAL BANNER (shown when referral code is present and valid) -->
                 <div id="referralBanner" class="info-box referral-banner" style="display: none;">
                     <p>🎁 <strong>You've been referred!</strong></p>
                     <p>✨ <strong>You'll receive 50 bonus points</strong> automatically upon signup!</p>
@@ -348,10 +325,9 @@
                     <input type="password" id="confirmWithdrawPin" class="pin-input" maxlength="6" placeholder="••••••">
                 </div>
                 
-                <!-- REFERRAL CODE FIELD WITH VALIDATION -->
                 <div class="input-group">
                     <label><i class="fas fa-gift"></i> Referral Code (Optional)</label>
-                    <input type="text" id="referralCode" class="referral-code-input" placeholder="Enter referral code if you have one" style="text-transform: uppercase;" oninput="validateReferralCode()">
+                    <input type="text" id="referralCode" class="referral-code-input" placeholder="Enter referral code if you have one" style="text-transform: uppercase;">
                     <div class="hint">Enter a referral code to get 50 bonus points after signup!</div>
                     <div id="referralStatus" style="margin-top: 5px;"></div>
                 </div>
@@ -375,34 +351,26 @@
 
     <script>
         // ============ API CONFIGURATION ============
-        // Auto-detect API URL - works both locally and on Render
-        const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:5000'
-            : 'https://cryptotrade-pro.onrender.com';
+        // Use relative paths - works on any port
+        const API_URL = '';
         
-        console.log('🔗 API URL:', API_URL);
+        console.log('🔗 API URL:', API_URL || '(using relative paths)');
 
         // ============ REFERRAL CODE HANDLING ============
-        
-        // Variables
         let isValidReferral = false;
         let validatedReferrerName = '';
         let validationTimeout = null;
         
-        // Get referral code from URL parameter ?ref=CODE
         const urlParams = new URLSearchParams(window.location.search);
         const referralCodeFromUrl = urlParams.get('ref');
         const referralInput = document.getElementById('referralCode');
         
-        // Auto-fill from URL if present
         if (referralCodeFromUrl && referralInput) {
             referralInput.value = referralCodeFromUrl.toUpperCase();
             console.log('🎁 Referral code auto-filled from URL:', referralCodeFromUrl);
-            // Auto-validate after a short delay
             setTimeout(() => validateReferralCode(), 500);
         }
         
-        // Validate referral code with server
         async function validateReferralCode() {
             const code = referralInput.value.trim().toUpperCase();
             const statusDiv = document.getElementById('referralStatus');
@@ -416,11 +384,10 @@
                 return;
             }
             
-            // Show checking status
             statusDiv.innerHTML = '<span class="referral-status checking"><i class="fas fa-spinner fa-pulse"></i> Checking referral code...</span>';
             
             try {
-                const response = await fetch(`${API_URL}/api/referral/validate`, {
+                const response = await fetch('/api/referral/validate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ referralCode: code })
@@ -432,16 +399,11 @@
                     isValidReferral = true;
                     validatedReferrerName = data.referrerName || 'a friend';
                     statusDiv.innerHTML = `<span class="referral-status valid"><i class="fas fa-check-circle"></i> ✅ Valid referral code from ${validatedReferrerName}! You'll get 50 bonus points!</span>`;
-                    
-                    // Show the referral banner with animation
                     banner.style.display = 'block';
                     banner.classList.add('referral-banner-valid');
-                    
-                    // Add celebratory effect
                     referralInput.style.borderColor = '#00e676';
                     referralInput.style.boxShadow = '0 0 10px rgba(0,230,118,0.3)';
-                    
-                    console.log('✅ Referral code validated:', code, 'from:', validatedReferrerName);
+                    console.log('✅ Referral code validated:', code);
                 } else {
                     isValidReferral = false;
                     validatedReferrerName = '';
@@ -449,7 +411,6 @@
                     banner.style.display = 'none';
                     referralInput.style.borderColor = '#ff4757';
                     referralInput.style.boxShadow = 'none';
-                    
                     console.log('❌ Invalid referral code:', code);
                 }
             } catch (error) {
@@ -460,24 +421,30 @@
             }
         }
         
-        // Clear validation styling when user starts typing
-        referralInput?.addEventListener('input', function() {
-            // Reset styling
-            this.style.borderColor = '';
-            this.style.boxShadow = '';
-            
-            // Debounce validation
-            if (validationTimeout) clearTimeout(validationTimeout);
-            validationTimeout = setTimeout(() => validateReferralCode(), 500);
-        });
-        
+        if (referralInput) {
+            referralInput.addEventListener('input', function() {
+                this.style.borderColor = '';
+                this.style.boxShadow = '';
+                if (validationTimeout) clearTimeout(validationTimeout);
+                validationTimeout = setTimeout(() => validateReferralCode(), 500);
+            });
+        }
+
         // ============ PIN INPUT RESTRICTIONS ============
-        document.getElementById('withdrawPin')?.addEventListener('input', function(e) {
-            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-        });
-        document.getElementById('confirmWithdrawPin')?.addEventListener('input', function(e) {
-            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-        });
+        const pinInput = document.getElementById('withdrawPin');
+        const confirmPinInput = document.getElementById('confirmWithdrawPin');
+        
+        if (pinInput) {
+            pinInput.addEventListener('input', function(e) {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+            });
+        }
+        
+        if (confirmPinInput) {
+            confirmPinInput.addEventListener('input', function(e) {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+            });
+        }
 
         function switchTab(tab) {
             const tabs = document.querySelectorAll('.tab');
@@ -494,7 +461,6 @@
                 loginForm.classList.remove('active');
                 signupForm.classList.add('active');
                 
-                // Re-validate referral code when switching to signup tab
                 if (referralInput && referralInput.value.trim()) {
                     setTimeout(() => validateReferralCode(), 100);
                 }
@@ -507,12 +473,13 @@
         function showLoading(message) {
             const overlay = document.getElementById('loadingOverlay');
             const text = document.querySelector('.loading-text');
-            text.innerHTML = message || 'Processing...';
-            overlay.classList.add('active');
+            if (text) text.innerHTML = message || 'Processing...';
+            if (overlay) overlay.classList.add('active');
         }
 
         function hideLoading() {
-            document.getElementById('loadingOverlay').classList.remove('active');
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) overlay.classList.remove('active');
         }
 
         async function handleLogin() {
@@ -528,7 +495,7 @@
             showLoading('Logging in...');
 
             try {
-                const response = await fetch(`${API_URL}/api/login`, {
+                const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
@@ -542,7 +509,7 @@
                     localStorage.setItem('userName', data.user.name);
                     messageDiv.innerHTML = '<span class="success">Login successful! Redirecting...</span>';
                     setTimeout(() => {
-                        window.location.href = 'dashboard.html';
+                        window.location.href = '/dashboard.html';
                     }, 1500);
                 } else {
                     hideLoading();
@@ -551,7 +518,7 @@
             } catch (error) {
                 hideLoading();
                 console.error('Login error:', error);
-                messageDiv.innerHTML = '<span class="error">Cannot connect to server. Please try again.</span>';
+                messageDiv.innerHTML = '<span class="error">Cannot connect to server. Please make sure the server is running.</span>';
             }
         }
 
@@ -608,7 +575,7 @@
             }
 
             try {
-                const signupResponse = await fetch(`${API_URL}/api/signup`, {
+                const signupResponse = await fetch('/api/signup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(signupData)
@@ -625,7 +592,7 @@
                     messageDiv.innerHTML = `<span class="success">${successMsg}</span>`;
                     
                     // Auto login
-                    const loginResponse = await fetch(`${API_URL}/api/login`, {
+                    const loginResponse = await fetch('/api/login', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ email, password })
@@ -638,7 +605,7 @@
                         localStorage.setItem('userEmail', email);
                         localStorage.setItem('userName', name);
                         setTimeout(() => {
-                            window.location.href = 'dashboard.html';
+                            window.location.href = '/dashboard.html';
                         }, 2000);
                     } else {
                         hideLoading();
@@ -655,26 +622,24 @@
             } catch (error) {
                 hideLoading();
                 console.error('Signup error:', error);
-                messageDiv.innerHTML = '<span class="error">Cannot connect to server. Please try again.</span>';
+                messageDiv.innerHTML = '<span class="error">Cannot connect to server. Please make sure the server is running.</span>';
             }
         }
 
         // Enter key handlers
-        document.getElementById('loginPassword')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') handleLogin();
-        });
-        document.getElementById('confirmWithdrawPin')?.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') handleSignup();
-        });
+        const loginPassword = document.getElementById('loginPassword');
+        if (loginPassword) {
+            loginPassword.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') handleLogin();
+            });
+        }
         
-        // Auto-focus on email field when switching to login
-        document.querySelector('.tab:first-child')?.addEventListener('click', function() {
-            setTimeout(() => document.getElementById('loginEmail')?.focus(), 100);
-        });
-        
-        document.querySelector('.tab:last-child')?.addEventListener('click', function() {
-            setTimeout(() => document.getElementById('signupName')?.focus(), 100);
-        });
+        const confirmPin = document.getElementById('confirmWithdrawPin');
+        if (confirmPin) {
+            confirmPin.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') handleSignup();
+            });
+        }
     </script>
 </body>
 </html>

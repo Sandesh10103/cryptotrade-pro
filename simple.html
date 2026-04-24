@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Simple Signup Test</title>
+    <meta charset="UTF-8">
+    <style>
+        body { font-family: Arial; padding: 50px; background: #0a0e27; color: white; }
+        input, button { display: block; margin: 10px 0; padding: 10px; width: 300px; }
+        button { background: #00d4ff; border: none; cursor: pointer; }
+        .error { color: #ff4757; }
+        .success { color: #00e676; }
+    </style>
+</head>
+<body>
+    <h1>Test Signup Form</h1>
+    <form id="signupForm">
+        <input type="text" id="name" placeholder="Full Name" required>
+        <input type="email" id="email" placeholder="Email" required>
+        <input type="password" id="password" placeholder="Password (min 6 chars)" required>
+        <input type="text" id="pin" placeholder="6-digit PIN" maxlength="6" required>
+        <button type="submit">Sign Up</button>
+    </form>
+    <div id="result"></div>
+
+    <script>
+        document.getElementById('signupForm').onsubmit = async (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('name').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const withdrawPin = document.getElementById('pin').value;
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Sending request...';
+            resultDiv.className = '';
+            
+            console.log('Sending:', { name, email, password, withdrawPin });
+            
+            try {
+                const response = await fetch('/api/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, email, password, withdrawPin })
+                });
+                
+                const data = await response.json();
+                console.log('Response:', response.status, data);
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = '? SUCCESS! User created: ' + data.user.name;
+                    resultDiv.className = 'success';
+                    alert('Signup successful! Check the database.');
+                } else {
+                    resultDiv.innerHTML = '? ERROR: ' + (data.message || 'Unknown error');
+                    resultDiv.className = 'error';
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                resultDiv.innerHTML = '? Cannot connect to server. Make sure server is running on port 5000';
+                resultDiv.className = 'error';
+            }
+        };
+        
+        // Only allow numbers in PIN field
+        document.getElementById('pin').addEventListener('input', function(e) {
+            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+        });
+    </script>
+</body>
+</html>

@@ -34,7 +34,7 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage, limits: { fileSize: 5 * 1024 * 1024 } });
 
 // Data storage
-const users = [];
+let users = [];
 const trades = [];
 const messages = [];
 const deposits = [];
@@ -86,12 +86,28 @@ function loadUsers() {
     if (fs.existsSync(usersFile)) {
         try {
             const data = fs.readFileSync(usersFile, 'utf8');
-            const loadedUsers = JSON.parse(data);
+            let loadedUsers = JSON.parse(data);
+            
+            // CRITICAL FIX: Ensure users is always an array
+            if (!Array.isArray(loadedUsers)) {
+                console.log('⚠️ Users file was not an array, converting to array...');
+                loadedUsers = [loadedUsers];
+                fs.writeFileSync(usersFile, JSON.stringify(loadedUsers, null, 2));
+            }
+            
             users.push(...loadedUsers);
             console.log('✅ Loaded', loadedUsers.length, 'users from file');
+            console.log('📊 Users array is now array?', Array.isArray(users));
         } catch (error) {
             console.log('⚠️ Error loading users:', error.message);
+            // If file is corrupted, create new empty array
+            users = [];
+            fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
         }
+    } else {
+        // Create empty users file if it doesn't exist
+        fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
+        console.log('📁 Created new users.json file');
     }
 }
 
@@ -100,6 +116,12 @@ function saveUsers() {
         // Ensure directory exists
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
+        }
+        
+        // CRITICAL FIX: Always ensure users is an array before saving
+        if (!Array.isArray(users)) {
+            console.error('❌ CRITICAL: users is not an array! Converting...');
+            users = users ? [users] : [];
         }
         
         const usersToSave = users.map(u => ({
@@ -137,7 +159,7 @@ function saveUsers() {
         }));
         
         fs.writeFileSync(usersFile, JSON.stringify(usersToSave, null, 2));
-        console.log('💾 Saved', users.length, 'users to file:', usersFile);
+        console.log('💾 Saved', users.length, 'users to file - Array format:', Array.isArray(usersToSave));
         return true;
     } catch (error) {
         console.error('❌ Error saving users:', error.message);
@@ -145,6 +167,7 @@ function saveUsers() {
         return false;
     }
 }
+
 function loadDeposits() {
     if (fs.existsSync(depositsFile)) {
         try {
@@ -205,6 +228,7 @@ function loadWithdrawals() {
 function saveWithdrawals() {
     try {
         fs.writeFileSync(withdrawalsFile, JSON.stringify(withdrawals, null, 2));
+        console.log('💾 Saved', withdrawals.length, 'withdrawals to file');
     } catch (error) {
         console.log('❌ Error saving withdrawals:', error.message);
     }
@@ -226,6 +250,7 @@ function loadReferrals() {
 function saveReferrals() {
     try {
         fs.writeFileSync(referralsFile, JSON.stringify(referralTransactions, null, 2));
+        console.log('💾 Saved', referralTransactions.length, 'referral transactions to file');
     } catch (error) {
         console.log('❌ Error saving referrals:', error.message);
     }
@@ -505,12 +530,13 @@ app.get('/api/crypto/price/:symbol', async (req, res) => {
     });
 });
 
-// ============ USER SYSTEM ============
+// ============ FIXED USER SYSTEM ============
 
 app.post('/api/signup', async (req, res) => {
-    console.log('📝 Signup:', req.body.email);
+    console.log('📝 Signup attempt:', req.body.email);
     const { name, email, password, withdrawPin, phone, referralCode } = req.body;
     
+    // Check if user exists
     if (users.find(u => u.email === email)) {
         return res.status(400).json({ message: 'User already exists' });
     }
@@ -534,8 +560,11 @@ app.post('/api/signup', async (req, res) => {
         }
     }
     
+    // Generate unique ID
+    const newId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
+    
     const newUser = {
-        id: users.length + 1,
+        id: newId,
         name,
         email,
         phone: phone || '',
@@ -557,7 +586,7 @@ app.post('/api/signup', async (req, res) => {
         accountType: 'Standard',
         createdAt: new Date().toISOString(),
         activeMode: 'demo',
-        referralCode: null,
+        referralCode: null, // Will set after push
         referredBy: referrerId,
         referralPoints: 0,
         totalPointsEarned: 0,
@@ -568,7 +597,11 @@ app.post('/api/signup', async (req, res) => {
         referralBonusGiven: false
     };
     
+    // Add to users array
     users.push(newUser);
+    console.log(`📝 User added to array. Total users in memory: ${users.length}`);
+    
+    // Generate referral code after user has ID
     newUser.referralCode = generateReferralCode(newUser.id, newUser.email);
     
     let referralMessagesAdded = false;
@@ -620,11 +653,18 @@ app.post('/api/signup', async (req, res) => {
         saveMessages();
     }
     
+    // CRITICAL: Save users immediately after adding
     const userSaved = saveUsers();
     if (!userSaved) {
+        console.error('❌ CRITICAL: Failed to save user!');
         return res.status(500).json({ message: 'Unable to save new user' });
     }
-    console.log('✅ User created. Total users:', users.length);
+    
+    console.log('✅ User created successfully!');
+    console.log(`   Name: ${newUser.name}`);
+    console.log(`   Email: ${newUser.email}`);
+    console.log(`   ID: ${newUser.id}`);
+    console.log(`   Total users now: ${users.length}`);
     
     res.json({ 
         message: referralValid ? 'Account created! You received 50 referral points!' : 'Account created successfully!',
@@ -1702,6 +1742,32 @@ app.get('/api/referral/invite-link', async (req, res) => {
         res.status(500).json({ success: false, error: error.message });
     }
 });
+
+// ========== CHECK AUTH ENDPOINT ==========
+app.get('/api/check-auth', (req, res) => {
+    res.json({ 
+        success: true, 
+        message: 'Server is running',
+        timestamp: new Date().toISOString()
+    });
+});
+
+// Debug endpoint to check users.json format
+app.get('/api/debug/users-format', (req, res) => {
+    try {
+        const data = fs.readFileSync(usersFile, 'utf8');
+        const parsed = JSON.parse(data);
+        res.json({
+            isArray: Array.isArray(parsed),
+            length: Array.isArray(parsed) ? parsed.length : 1,
+            format: Array.isArray(parsed) ? 'array' : 'object',
+            sample: Array.isArray(parsed) ? parsed[0] : parsed
+        });
+    } catch (error) {
+        res.json({ error: error.message });
+    }
+});
+
 // Safety auto-save every 30 seconds
 setInterval(() => {
     if (users.length > 0) {
@@ -1721,122 +1787,7 @@ process.on('SIGINT', () => {
     saveReferrals();
     process.exit();
 });
-// ========== REGISTRATION ENDPOINT ==========
-app.post('/api/register', async (req, res) => {
-    try {
-        const { name, email, password, referralCode } = req.body;
-        
-        // Validate input
-        if (!name || !email || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'Name, email and password are required' 
-            });
-        }
-        
-        // Check if user already exists
-        const userExists = users.find(u => u.email === email);
-        if (userExists) {
-            return res.status(400).json({ 
-                success: false, 
-                error: 'User with this email already exists' 
-            });
-        }
-        
-        // Hash the password
-        const bcrypt = require('bcryptjs');
-        const hashedPassword = await bcrypt.hash(password, 10);
-        const hashedPin = await bcrypt.hash('123456', 10);
-        
-        // Generate unique referral code
-        const newReferralCode = Math.random().toString(36).substring(2, 10).toUpperCase();
-        
-        // Create new user object
-        const newUser = {
-            id: users.length + 1,
-            name: name,
-            email: email,
-            phone: "",
-            password: hashedPassword,
-            withdrawPin: hashedPin,
-            demoBalance: 10000,
-            demoTotalTrades: 0,
-            demoTotalProfit: 0,
-            demoWins: 0,
-            demoLosses: 0,
-            realBalance: 0,
-            realTotalDeposits: 0,
-            realTotalWithdrawals: 0,
-            realTotalTrades: 0,
-            realTotalProfit: 0,
-            realWins: 0,
-            realLosses: 0,
-            isVerified: true,
-            accountType: "Standard",
-            createdAt: new Date().toISOString(),
-            activeMode: "demo",
-            referralCode: newReferralCode,
-            referredBy: referralCode || null,
-            referralPoints: 0,
-            totalPointsEarned: 0,
-            pointsConverted: 0,
-            totalReferrals: 0,
-            completedReferrals: 0,
-            pendingReferrals: 0,
-            referralBonusGiven: false
-        };
-        
-        // Add to users array
-        users.push(newUser);
-        
-        // Handle referral bonus if referral code was used
-        if (referralCode) {
-            const referrer = users.find(u => u.referralCode === referralCode);
-            if (referrer) {
-                referrer.referralPoints = (referrer.referralPoints || 0) + 100;
-                referrer.totalPointsEarned = (referrer.totalPointsEarned || 0) + 100;
-                referrer.pendingReferrals = (referrer.pendingReferrals || 0) + 1;
-                console.log(`Referral bonus given to ${referrer.email}`);
-            }
-        }
-        
-        if (!saveUsers()) {
-            return res.status(500).json({ 
-                success: false,
-                error: 'Unable to save new user'
-            });
-        }
-        
-        console.log(`New user registered: ${email}`);
-        
-        res.status(201).json({ 
-            success: true, 
-            message: 'Registration successful!',
-            user: {
-                id: newUser.id,
-                name: newUser.name,
-                email: newUser.email,
-                referralCode: newUser.referralCode
-            }
-        });
-        
-    } catch (error) {
-        console.error('Registration error:', error);
-        res.status(500).json({ 
-            success: false, 
-            error: 'Registration failed. Please try again.' 
-        });
-    }
-});
-// ========== CHECK AUTH ENDPOINT ==========
-app.get('/api/check-auth', (req, res) => {
-    // This is a simple endpoint to check if server is running
-    res.json({ 
-        success: true, 
-        message: 'Server is running',
-        timestamp: new Date().toISOString()
-    });
-});
+
 // ============ START SERVER ============
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
@@ -1845,5 +1796,6 @@ app.listen(PORT, () => {
     console.log(`🎁 Referral system enabled (${POINTS_TO_DOLLAR_RATE} points = $1)`);
     console.log(`📈 Trade payout: ${TRADE_PAYOUT_PERCENTAGE * 100}% on wins`);
     console.log(`💾 Data saved to JSON files`);
+    console.log(`📁 Users file path: ${usersFile}`);
     fetchRealPrices();
 });
