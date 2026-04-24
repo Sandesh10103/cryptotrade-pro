@@ -203,12 +203,22 @@ loadReferrals();
 
 app.use('/uploads', express.static(uploadDir));
 
+// ============ STATIC FILE SERVING FOR RENDER ============
+// The client folder is one level UP from the server folder
+const clientPath = path.join(__dirname, '..', 'client');
+console.log('📁 Serving static files from:', clientPath);
+
 // Serve static files from client directory
-app.use(express.static(path.join(__dirname, 'client')));
+app.use(express.static(clientPath));
 
 // Root route - serve index.html
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'client', 'index.html'));
+    const indexPath = path.join(clientPath, 'index.html');
+    if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+    } else {
+        res.status(404).send('index.html not found');
+    }
 });
 
 // Health check endpoint
@@ -847,7 +857,7 @@ app.post('/api/user/verify-pin', async (req, res) => {
     }
 });
 
-// ============ TRADE ENDPOINT ============
+// ============ TRADE ENDPOINT - COMPLETELY FIXED ============
 
 app.post('/api/trade', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -864,6 +874,13 @@ app.post('/api/trade', async (req, res) => {
         }
         
         const { amount, direction, pin, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
+        
+        // Log received data for debugging
+        console.log('📥 Received trade request:', {
+            amount, direction, crypto, duration,
+            won: won, wonType: typeof won,
+            priceAtTrade, exitPrice
+        });
         
         // Validate required fields
         if (!amount || !direction || !pin || !crypto) {
@@ -889,7 +906,7 @@ app.post('/api/trade', async (req, res) => {
             });
         }
         
-        // Determine win/loss
+        // Determine win/loss (handle various formats of 'won')
         let isWin = false;
         if (won === true || won === 'true' || won === 1 || won === '1') {
             isWin = true;
@@ -1176,7 +1193,7 @@ app.post('/api/upload-image', upload.single('image'), async (req, res) => {
         const decoded = jwt.verify(token, JWT_SECRET);
         const user = users.find(u => u.id === decoded.userId);
         if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
-        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+        const imageUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
         const imageMessage = {
             id: messages.length + 1,
             userId: decoded.userId,
