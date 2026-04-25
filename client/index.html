@@ -384,12 +384,9 @@
             gap: 6px;
         }
 
-        .valid {
-            color: #6fcf97;
-        }
-        .invalid {
-            color: #ff7b89;
-        }
+        .valid { color: #6fcf97; }
+        .invalid { color: #ff7b89; }
+        .checking { color: #00d4ff; }
 
         @media (max-width: 900px) {
             .split-layout { flex-direction: column; }
@@ -443,7 +440,6 @@
                 </div>
 
                 <div class="chart-illustration">
-                    <!-- Professional crypto/chart SVG illustration (detailed) -->
                     <svg class="main-chart-img" viewBox="0 0 400 220" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M20,180 L70,140 L120,160 L170,100 L220,120 L270,60 L320,85 L370,40" stroke="#00d4ff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="6 4"/>
                         <path d="M20,180 L70,140 L120,160 L170,100 L220,120 L270,60 L320,85 L370,40" stroke="#00e676" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.5"/>
@@ -475,7 +471,7 @@
                 </div>
             </div>
 
-            <!-- RIGHT: Authentication Forms (Login/Signup) -->
+            <!-- RIGHT: Authentication Forms -->
             <div class="form-panel">
                 <div class="auth-tabs">
                     <button class="auth-tab active" data-tab="login">🔐 Login</button>
@@ -502,7 +498,7 @@
                     </div>
                 </div>
 
-                <!-- SIGNUP FORM with referral details & PIN -->
+                <!-- SIGNUP FORM -->
                 <div id="signupForm" class="auth-form">
                     <div class="form-title">Create Profile</div>
                     <div class="form-sub">Start trading in 2 minutes</div>
@@ -558,64 +554,108 @@
     </div>
 
     <script>
-        // ---------- REFERRAL & UI HELPERS ----------
+        // ============ HEARTBEAT FUNCTION (RESTORED) ============
+        let heartbeatInterval = null;
+        
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(async () => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    try {
+                        await fetch('/api/user/heartbeat', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        console.log('💓 Heartbeat sent');
+                    } catch (error) {
+                        console.log('Heartbeat failed:', error);
+                    }
+                }
+            }, 30000);
+        }
+
+        // ============ REFERRAL API ENDPOINT (RESTORED) ============
+        let isValidReferral = false;
+        let validatedReferrerName = '';
+        let validationTimeout = null;
+        
         const referralInput = document.getElementById('referralCode');
         const refBanner = document.getElementById('referralDynamicBanner');
         const referralStatusSpan = document.getElementById('referralStatusInline');
-        let isValidReferral = false;
-        let lastReferralCheck = '';
-
-        async function checkReferralCode(code) {
-            if (!code.trim()) {
+        
+        // Check for referral code in URL parameter
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCodeFromUrl = urlParams.get('ref');
+        if (referralCodeFromUrl && referralInput) {
+            referralInput.value = referralCodeFromUrl.toUpperCase();
+            setTimeout(() => validateReferralCode(), 500);
+        }
+        
+        async function validateReferralCode() {
+            const code = referralInput.value.trim().toUpperCase();
+            
+            if (!code) {
                 isValidReferral = false;
-                refBanner.style.display = 'none';
+                validatedReferrerName = '';
+                if(refBanner) refBanner.style.display = 'none';
                 if(referralStatusSpan) referralStatusSpan.innerHTML = '';
                 return false;
             }
-            if(referralStatusSpan) referralStatusSpan.innerHTML = '<i class="fas fa-spinner fa-pulse"></i> verifying...';
+            
+            if(referralStatusSpan) referralStatusSpan.innerHTML = '<span class="checking"><i class="fas fa-spinner fa-pulse"></i> Checking referral code...</span>';
+            
             try {
-                // Simulate API check (in real scenario connect to backend)
-                // For demo purpose we simulate valid codes: "CRYPTO50", "TRADE2025", "WELCOME"
-                const validDemoCodes = ['CRYPTO50', 'TRADE2025', 'WELCOME', 'BONUS100'];
-                if(validDemoCodes.includes(code.toUpperCase())) {
+                const response = await fetch('/api/referral/validate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ referralCode: code })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.valid) {
                     isValidReferral = true;
-                    if(referralStatusSpan) referralStatusSpan.innerHTML = '<span class="valid"><i class="fas fa-check-circle"></i> Valid code! +50 bonus points credited after signup.</span>';
-                    refBanner.style.display = 'block';
+                    validatedReferrerName = data.referrerName || 'a friend';
+                    if(referralStatusSpan) referralStatusSpan.innerHTML = `<span class="valid"><i class="fas fa-check-circle"></i> ✅ Valid referral code from ${validatedReferrerName}! You'll get 50 bonus points!</span>`;
+                    if(refBanner) {
+                        refBanner.style.display = 'block';
+                        refBanner.innerHTML = `<i class="fas fa-gift"></i> <strong>Referral activated!</strong> You'll receive 50 bonus points automatically upon signup! Your referrer ${validatedReferrerName} will earn 100 points when you complete your first trade.`;
+                    }
+                    if(referralInput) referralInput.style.borderColor = '#00e676';
                     return true;
                 } else {
                     isValidReferral = false;
-                    if(referralStatusSpan) referralStatusSpan.innerHTML = '<span class="invalid"><i class="fas fa-times-circle"></i> Invalid referral code</span>';
-                    refBanner.style.display = 'none';
+                    validatedReferrerName = '';
+                    if(referralStatusSpan) referralStatusSpan.innerHTML = `<span class="invalid"><i class="fas fa-exclamation-triangle"></i> ❌ Invalid referral code. Please check and try again.</span>`;
+                    if(refBanner) refBanner.style.display = 'none';
+                    if(referralInput) referralInput.style.borderColor = '#ff4757';
                     return false;
                 }
-            } catch(e) {
+            } catch (error) {
+                console.error('Error validating referral:', error);
                 isValidReferral = false;
-                if(referralStatusSpan) referralStatusSpan.innerHTML = '<span class="invalid">Network error</span>';
+                if(referralStatusSpan) referralStatusSpan.innerHTML = '<span class="invalid"><i class="fas fa-exclamation-triangle"></i> ⚠️ Could not validate code. Please try again.</span>';
+                if(refBanner) refBanner.style.display = 'none';
                 return false;
             }
         }
-
+        
         if(referralInput) {
-            referralInput.addEventListener('input', function(e) {
-                let code = this.value.trim().toUpperCase();
-                if(code.length > 2) checkReferralCode(code);
-                else { isValidReferral=false; refBanner.style.display='none'; if(referralStatusSpan) referralStatusSpan.innerHTML=''; }
+            referralInput.addEventListener('input', function() {
+                this.style.borderColor = '';
+                if (validationTimeout) clearTimeout(validationTimeout);
+                validationTimeout = setTimeout(() => validateReferralCode(), 500);
             });
-            // check for URL ref parameter
-            const urlRef = new URLSearchParams(window.location.search).get('ref');
-            if(urlRef) {
-                referralInput.value = urlRef.toUpperCase();
-                checkReferralCode(urlRef.toUpperCase());
-            }
         }
 
-        // PIN digits only
+        // PIN input restrictions
         const pinField = document.getElementById('withdrawPin');
         const confirmPinField = document.getElementById('confirmWithdrawPin');
         if(pinField) pinField.addEventListener('input', e => e.target.value = e.target.value.replace(/\D/g, '').slice(0,6));
         if(confirmPinField) confirmPinField.addEventListener('input', e => e.target.value = e.target.value.replace(/\D/g, '').slice(0,6));
 
-        // Tab switching with smooth UI
+        // Tab switching
         const tabs = document.querySelectorAll('.auth-tab');
         const loginFormDiv = document.getElementById('loginForm');
         const signupFormDiv = document.getElementById('signupForm');
@@ -632,7 +672,7 @@
             } else {
                 loginFormDiv.classList.remove('active');
                 signupFormDiv.classList.add('active');
-                if(referralInput && referralInput.value.trim()) checkReferralCode(referralInput.value);
+                if(referralInput && referralInput.value.trim()) validateReferralCode();
             }
             document.getElementById('loginMessage').innerHTML = '';
             document.getElementById('signupMessage').innerHTML = '';
@@ -650,16 +690,14 @@
         }
         function hideLoader() { document.getElementById('loadingOverlay').classList.remove('active'); }
 
-        // ---------- LOGIN HANDLER (mock API with localStorage simulation) ----------
+        // ============ LOGIN HANDLER ============
         async function handleLogin() {
             const email = document.getElementById('loginEmail').value.trim();
             const pwd = document.getElementById('loginPassword').value;
             const msgDiv = document.getElementById('loginMessage');
             if(!email || !pwd) { msgDiv.innerHTML = '<span class="error">Please enter email & password</span>'; return; }
-            showLoader('Authenticating...');
+            showLoader('Logging in...');
             
-            // simulate API request with localStorage demo check (since original backend may be absent, we add mock)
-            // but we keep compatibility: if real backend exists, we forward to /api/login
             try {
                 const response = await fetch('/api/login', {
                     method: 'POST',
@@ -670,28 +708,22 @@
                 if(response.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('userEmail', email);
-                    msgDiv.innerHTML = '<span class="success">✔️ Login success. Redirecting to dashboard...</span>';
-                    setTimeout(() => { window.location.href = '/dashboard.html'; }, 1200);
+                    localStorage.setItem('userName', data.user?.name || email.split('@')[0]);
+                    msgDiv.innerHTML = '<span class="success">✔️ Login successful! Redirecting...</span>';
+                    startHeartbeat(); // Start heartbeat after successful login
+                    setTimeout(() => { window.location.href = '/dashboard.html'; }, 1500);
                 } else {
                     hideLoader();
-                    msgDiv.innerHTML = `<span class="error">${data.message || 'Invalid credentials'}</span>`;
+                    msgDiv.innerHTML = `<span class="error">${data.message || 'Login failed'}</span>`;
                 }
             } catch(err) {
-                // Fallback simulation for design preview (so demo looks alive)
-                console.warn("Using demo fallback since backend may be offline");
-                if(email === "demo@cryptotrade.io" || email === "test@example.com") {
-                    localStorage.setItem('token', 'demo_token_fallback');
-                    localStorage.setItem('userEmail', email);
-                    msgDiv.innerHTML = '<span class="success">Demo login successful! Redirecting...</span>';
-                    setTimeout(() => { alert("Demo mode: Redirect to dashboard (simulated). In production, backend handles auth."); hideLoader(); }, 800);
-                } else {
-                    hideLoader();
-                    msgDiv.innerHTML = '<span class="error">Server connection issue. Try demo@cryptotrade.io / any password</span>';
-                }
+                hideLoader();
+                console.error('Login error:', err);
+                msgDiv.innerHTML = '<span class="error">Cannot connect to server. Please make sure the server is running.</span>';
             }
         }
 
-        // ---------- SIGNUP HANDLER with referral & PIN validation ----------
+        // ============ SIGNUP HANDLER ============
         async function handleSignup() {
             const name = document.getElementById('signupName').value.trim();
             const email = document.getElementById('signupEmail').value.trim();
@@ -703,66 +735,93 @@
             const msgDiv = document.getElementById('signupMessage');
 
             if(!name || !email || !pwd || !confirmPwd || !pin || !confirmPin) {
-                msgDiv.innerHTML = '<span class="error">All fields required</span>'; return;
+                msgDiv.innerHTML = '<span class="error">Please fill in all fields</span>'; return;
             }
             if(pwd !== confirmPwd) { msgDiv.innerHTML = '<span class="error">Passwords do not match</span>'; return; }
-            if(pwd.length < 6) { msgDiv.innerHTML = '<span class="error">Password min 6 characters</span>'; return; }
+            if(pwd.length < 6) { msgDiv.innerHTML = '<span class="error">Password must be at least 6 characters</span>'; return; }
             if(pin !== confirmPin) { msgDiv.innerHTML = '<span class="error">Withdrawal PINs do not match</span>'; return; }
-            if(!/^\d{6}$/.test(pin)) { msgDiv.innerHTML = '<span class="error">PIN must be exactly 6 digits</span>'; return; }
+            if(!/^\d{6}$/.test(pin)) { msgDiv.innerHTML = '<span class="error">Withdraw PIN must be exactly 6 digits</span>'; return; }
             
-            let finalReferral = null;
-            if(referralCodeVal) {
-                const valid = await checkReferralCode(referralCodeVal);
-                if(valid) finalReferral = referralCodeVal;
-                else if(referralCodeVal && !valid) {
-                    const proceed = confirm("Referral code invalid. Continue without bonus?");
-                    if(!proceed) return;
-                }
+            // If referral code provided but invalid, ask for confirmation
+            if(referralCodeVal && !isValidReferral) {
+                const confirmSignup = confirm('The referral code you entered appears to be invalid. Would you still like to sign up without the referral bonus?');
+                if(!confirmSignup) return;
             }
             
-            showLoader('Setting up secure account...');
+            showLoader('Creating your account...');
+            
+            const signupData = { name, email, password: pwd, withdrawPin: pin };
+            if(referralCodeVal && isValidReferral) {
+                signupData.referralCode = referralCodeVal;
+            }
+            
             try {
-                const payload = { name, email, password: pwd, withdrawPin: pin };
-                if(finalReferral) payload.referralCode = finalReferral;
                 const response = await fetch('/api/signup', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify(signupData)
                 });
                 const data = await response.json();
+                
                 if(response.ok) {
-                    let successMsg = '🎉 Account created! ';
-                    if(finalReferral) successMsg += 'Referral bonus applied! ';
+                    let successMsg = '✅ Account created successfully! ';
+                    if(referralCodeVal && isValidReferral) successMsg += '🎉 You received 50 referral bonus points! ';
                     msgDiv.innerHTML = `<span class="success">${successMsg}</span>`;
-                    // auto login
-                    const loginResp = await fetch('/api/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email, password: pwd }) });
-                    if(loginResp.ok) {
-                        const loginData = await loginResp.json();
+                    
+                    // Auto-login after signup
+                    const loginResponse = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password: pwd })
+                    });
+                    const loginData = await loginResponse.json();
+                    
+                    if(loginResponse.ok) {
                         localStorage.setItem('token', loginData.token);
                         localStorage.setItem('userEmail', email);
-                        setTimeout(() => { window.location.href = '/dashboard.html'; }, 1500);
-                    } else { hideLoader(); setActiveTab('login'); document.getElementById('loginEmail').value = email; msgDiv.innerHTML += ' Please login.'; }
+                        localStorage.setItem('userName', name);
+                        startHeartbeat(); // Start heartbeat after signup
+                        setTimeout(() => { window.location.href = '/dashboard.html'; }, 2000);
+                    } else {
+                        hideLoader();
+                        msgDiv.innerHTML += '<br>Please login manually.';
+                        setActiveTab('login');
+                        document.getElementById('loginEmail').value = email;
+                    }
                 } else {
                     hideLoader();
-                    msgDiv.innerHTML = `<span class="error">${data.message || 'Signup failed, email exists?'}</span>`;
+                    msgDiv.innerHTML = `<span class="error">${data.message || 'Signup failed'}</span>`;
                 }
             } catch(err) {
                 hideLoader();
-                msgDiv.innerHTML = '<span class="error">Demo: Simulated success! (Backend offline) – In production this would register.</span>';
-                console.log("Demo signup success (mock)");
-                if(finalReferral) alert("Demo: +50 bonus points recorded.");
-                setActiveTab('login');
+                console.error('Signup error:', err);
+                msgDiv.innerHTML = '<span class="error">Cannot connect to server. Please make sure the server is running.</span>';
             }
         }
 
+        // Event listeners
         document.getElementById('loginBtn').addEventListener('click', handleLogin);
         document.getElementById('signupBtn').addEventListener('click', handleSignup);
         
         // Enter key submission
         const loginPass = document.getElementById('loginPassword');
         if(loginPass) loginPass.addEventListener('keypress', e => { if(e.key === 'Enter') handleLogin(); });
-        const signupConfirmPin = document.getElementById('confirmWithdrawPin');
-        if(signupConfirmPin) signupConfirmPin.addEventListener('keypress', e => { if(e.key === 'Enter') handleSignup(); });
+        const signupConfirmPinField = document.getElementById('confirmWithdrawPin');
+        if(signupConfirmPinField) signupConfirmPinField.addEventListener('keypress', e => { if(e.key === 'Enter') handleSignup(); });
+        
+        // Check if user is already logged in
+        const token = localStorage.getItem('token');
+        if(token && window.location.pathname !== '/dashboard.html') {
+            fetch('/api/user/data', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(response => {
+                if(response.ok) {
+                    startHeartbeat();
+                } else {
+                    localStorage.removeItem('token');
+                }
+            }).catch(() => {});
+        }
     </script>
 </body>
 </html>
