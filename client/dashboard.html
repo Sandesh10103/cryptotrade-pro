@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
     <title>CryptoTrade Pro - Real-Time Trading</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
@@ -27,6 +27,31 @@
         .balance-value { font-size: 20px; font-weight: bold; color: #00d4ff; }
         .logout-btn { background: #ff4757; color: #fff; }
         
+        /* Mobile Responsive Fixes */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .header h2 { font-size: 14px; }
+            .action-btn, .profile-btn, .referral-btn { padding: 5px 10px; font-size: 10px; }
+            .balance-value { font-size: 14px; }
+            .stat-card { padding: 6px 12px; }
+            .stat-value { font-size: 14px; }
+            .crypto-grid { grid-template-columns: repeat(auto-fill, minmax(70px, 1fr)); }
+            .crypto-item { padding: 5px; }
+            .crypto-symbol { font-size: 10px; }
+            .trade-buttons { flex-direction: column; }
+            .quick-amounts { flex-wrap: wrap; }
+            .quick-amount { font-size: 12px; }
+            .timer-options { flex-wrap: wrap; }
+            .active-trade-details { grid-template-columns: repeat(2, 1fr); }
+        }
+        
+        @media (max-width: 480px) {
+            .stat-card { min-width: 70px; }
+            .stat-value { font-size: 12px; }
+            .balance-value { font-size: 12px; }
+            .action-btn { padding: 4px 8px; font-size: 9px; }
+        }
+        
         .stats-panel {
             background: #121937;
             border-radius: 12px;
@@ -44,6 +69,9 @@
             padding: 10px 20px;
             text-align: center;
             min-width: 100px;
+        }
+        @media (max-width: 768px) {
+            .stat-card { min-width: 80px; padding: 6px 12px; }
         }
         .stat-label { font-size: 11px; color: #8a92b0; margin-bottom: 5px; }
         .stat-value { font-size: 20px; font-weight: bold; }
@@ -66,6 +94,7 @@
         }
         .active-trade-title { color: #ff4757; font-size: 14px; font-weight: bold; margin-bottom: 15px; text-align: center; }
         .active-trade-details { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; text-align: center; margin-bottom: 15px; }
+        @media (max-width: 768px) { .active-trade-details { grid-template-columns: repeat(2, 1fr); } }
         .active-trade-item { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 10px; }
         .active-trade-label { font-size: 11px; color: #8a92b0; }
         .active-trade-value { font-size: 18px; font-weight: bold; color: #00d4ff; }
@@ -86,19 +115,21 @@
         .selected-crypto-price { font-size: 32px; font-weight: bold; color: #00d4ff; }
         
         .main-grid { display: grid; grid-template-columns: 1.8fr 1fr; gap: 20px; margin-bottom: 20px; }
+        @media (max-width: 1024px) { .main-grid { grid-template-columns: 1fr; } }
         .chart-container { background: #121937; border-radius: 12px; overflow: hidden; min-height: 550px; }
         .trading-card, .history-card { background: #121937; border-radius: 12px; padding: 20px; }
         
         .timer-container { background: #1a1f3a; border-radius: 12px; padding: 15px; margin-bottom: 20px; text-align: center; }
-        .timer-options { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; }
+        .timer-options { display: flex; gap: 10px; justify-content: center; margin-bottom: 15px; flex-wrap: wrap; }
         .timer-option { padding: 5px 15px; background: #2a2f4a; border-radius: 20px; cursor: pointer; }
         .timer-option.active { background: #00d4ff; color: #000; }
         .timer-option.disabled { opacity: 0.5; cursor: not-allowed; }
         
         .amount-input input { width: 100%; padding: 12px; background: #1a1f3a; border: 1px solid #2a2f4a; border-radius: 8px; color: white; margin: 10px 0; }
-        .quick-amounts { display: flex; gap: 10px; margin: 10px 0; }
-        .quick-amount { flex: 1; padding: 8px; background: #1a1f3a; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; }
+        .quick-amounts { display: flex; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+        .quick-amount { flex: 1; padding: 8px; background: #1a1f3a; border-radius: 8px; text-align: center; cursor: pointer; font-weight: bold; min-width: 60px; }
         .trade-buttons { display: flex; gap: 15px; margin: 15px 0; }
+        @media (max-width: 768px) { .trade-buttons { flex-direction: column; } }
         .trade-btn { flex: 1; padding: 15px; font-size: 18px; font-weight: bold; border: none; border-radius: 10px; cursor: pointer; }
         .trade-btn:hover { transform: translateY(-2px); }
         .btn-up { background: #00e676; color: #000; }
@@ -133,10 +164,12 @@
             text-align: center;
             min-width: 350px;
         }
+        @media (max-width: 480px) { .notification-popup { padding: 20px; min-width: 280px; } }
         .notification-popup i { font-size: 60px; margin-bottom: 20px; }
         .notification-popup .success-icon { color: #00e676; }
         .notification-popup .error-icon { color: #ff4757; }
         .notification-popup h3 { font-size: 28px; margin-bottom: 15px; }
+        @media (max-width: 480px) { .notification-popup h3 { font-size: 22px; } }
         .notification-btn {
             background: linear-gradient(135deg, #00d4ff, #0099cc);
             color: #000;
@@ -162,6 +195,7 @@
             z-index: 999;
             box-shadow: 0 4px 15px rgba(0,212,255,0.4);
         }
+        @media (max-width: 480px) { .chat-button { width: 50px; height: 50px; bottom: 15px; right: 15px; } .chat-button i { font-size: 24px; } }
         .chat-button:hover { transform: scale(1.1); }
         .chat-button i { font-size: 30px; color: white; }
         .chat-unread-badge {
@@ -191,6 +225,7 @@
             flex-direction: column;
             overflow: hidden;
         }
+        @media (max-width: 480px) { .chat-modal { width: 90%; right: 5%; left: 5%; height: 70vh; bottom: 80px; } }
         .chat-modal.active { display: flex; }
         .chat-header {
             background: linear-gradient(135deg, #00d4ff, #0099cc);
@@ -228,7 +263,7 @@
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); justify-content: center; align-items: center; z-index: 1001; }
         .modal.active { display: flex; }
-        .modal-content { background: #121937; padding: 30px; border-radius: 16px; width: 350px; }
+        .modal-content { background: #121937; padding: 30px; border-radius: 16px; width: 90%; max-width: 350px; }
         .modal-content input { width: 100%; padding: 10px; margin: 10px 0; background: #1a1f3a; border: 1px solid #2a2f4a; border-radius: 8px; color: white; }
         
         .profile-modal, .referral-modal {
@@ -254,7 +289,6 @@
             overflow-y: auto;
         }
         
-        /* Referral Modal Styles */
         .referral-stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -283,6 +317,8 @@
             justify-content: space-between;
             padding: 12px 0;
             border-bottom: 1px solid #2a2f4a;
+            flex-wrap: wrap;
+            gap: 10px;
         }
         .profile-info-label { color: #8a92b0; }
         .profile-info-value { color: #fff; font-weight: 500; }
@@ -297,21 +333,6 @@
             margin-top: 20px;
         }
         .close-modal { background: none; border: none; color: #8a92b0; font-size: 28px; cursor: pointer; }
-        
-        @media (max-width: 1024px) { 
-            .main-grid { grid-template-columns: 1fr; }
-            .active-trade-details { grid-template-columns: repeat(2, 1fr); }
-        }
-        
-        /* Fix for mobile */
-        @media (max-width: 768px) {
-            body { padding: 10px; }
-            .header h2 { font-size: 14px; }
-            .action-btn, .profile-btn, .referral-btn { padding: 5px 10px; font-size: 10px; }
-            .balance-value { font-size: 14px; }
-            .stat-card { padding: 6px 12px; }
-            .stat-value { font-size: 14px; }
-        }
     </style>
 </head>
 <body>
@@ -409,11 +430,13 @@
         </div>
     </div>
 
+    <!-- Original Chat Button -->
     <div class="chat-button" onclick="toggleChat()">
         <i class="fas fa-headset"></i>
         <span class="chat-unread-badge" id="chatUnreadBadge">0</span>
     </div>
 
+    <!-- Original Chat Modal -->
     <div id="chatModal" class="chat-modal">
         <div class="chat-header"><h4><i class="fas fa-headset"></i> Customer Support</h4><button class="close-chat" onclick="toggleChat()">×</button></div>
         <div class="chat-messages" id="chatMessages"><div style="text-align:center; padding:20px;">Loading messages...</div></div>
@@ -425,8 +448,7 @@
         <input type="file" id="fileInput" accept="image/*" style="display:none" onchange="uploadImage()">
     </div>
 
-    <!-- PIN MODAL IS REMOVED - Trading starts directly -->
-    
+    <!-- Deposit Modal -->
     <div id="depositModal" class="modal">
         <div class="modal-content">
             <h3>Deposit Funds</h3>
@@ -438,7 +460,7 @@
         </div>
     </div>
 
-    <!-- Withdrawal Modal with PIN field -->
+    <!-- Withdrawal Modal -->
     <div id="withdrawModal" class="modal">
         <div class="modal-content">
             <h3>Withdraw Funds</h3>
@@ -660,7 +682,7 @@
                         <td style="color: ${Number(changePercent) >= 0 ? '#00e676' : '#ff4757'}">${Number(changePercent) >= 0 ? '+' : ''}${Number(changePercent).toFixed(2)}%</td>
                         <td><span class="${result === 'WIN' ? 'result-win' : 'result-loss'}">${result === 'WIN' ? '✓ WIN' : '✗ LOSS'}</span></td>
                         <td class="${Number(profitLoss) >= 0 ? 'profit-positive' : 'profit-negative'}">${Number(profitLoss) >= 0 ? '+' : ''}$${Math.abs(Number(profitLoss)).toFixed(2)}</td>
-                    </td>
+                    </tr>
                 `;
             }).join('');
         }
@@ -747,7 +769,7 @@
             });
         }
 
-        // ============ TRADING - NO PIN REQUIRED ============
+        // ============ TRADING FUNCTIONS ============
         function selectTradeDuration(seconds) {
             if (isTradeActive) {
                 showNotification('Trade Active', 'Please wait for current trade to complete', 'error');
@@ -1048,7 +1070,7 @@
             } catch (error) {}
         }
 
-        // ============ DEPOSIT - NO PIN REQUIRED ============
+        // ============ DEPOSIT FUNCTIONS ============
         function openDepositModal() {
             if (currentMode === 'demo') {
                 showNotification('Demo Mode', 'Switch to REAL mode to deposit', 'info');
@@ -1092,7 +1114,7 @@
             }
         }
 
-        // ============ WITHDRAWAL - PIN REQUIRED ============
+        // ============ WITHDRAWAL FUNCTIONS ============
         function openWithdrawModal() {
             if (currentMode === 'demo') {
                 showNotification('Demo Mode', 'Switch to REAL mode to withdraw', 'info');
@@ -1253,7 +1275,7 @@
                                 <div class="referral-stat-card"><span>🏆 Total Points Earned</span><h2>${data.total_points_earned}</h2></div>
                                 <div class="referral-stat-card"><span>🔄 Points Converted</span><h2>${data.points_converted}</h2></div>
                             </div>
-                            <div class="referral-history"><h4>Referral History</h4><div>${data.referred_users?.length ? '<table style="width:100%"><thead><tr><th>Name</th><th>Email</th><th>Joined</th><th>Status</th></tr></thead><tbody>' + data.referred_users.map(u => `<tr><td>${escapeHtml(u.name)}</td><td>${escapeHtml(u.email)}</td><td>${new Date(u.joinedAt).toLocaleDateString()}</td><td>${u.completed ? '✓ Completed' : '⏳ Pending'}</td></tr>`).join('') + '</tbody></table>' : '<div class="empty-referrals">No referrals yet</div>'}</div></div>
+                            <div class="referral-history"><h4>Referral History</h4><div>${data.referred_users?.length ? '<div style="max-height:200px; overflow-y:auto;">' + data.referred_users.map(u => `<div style="padding:8px; border-bottom:1px solid #2a2f4a;"><strong>${escapeHtml(u.name)}</strong> - ${escapeHtml(u.email)}<br><small>Joined: ${new Date(u.joinedAt).toLocaleDateString()} | ${u.completed ? '✓ Completed' : '⏳ Pending'}</small></div>`).join('') + '</div>' : '<div class="empty-referrals">No referrals yet</div>'}</div></div>
                         `;
                     }
                 }
@@ -1299,9 +1321,12 @@
 
         // ============ INITIALIZATION ============
         // PIN input restrictions for withdrawal
-        document.getElementById('withdrawPinInput')?.addEventListener('input', function(e) {
-            this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
-        });
+        const pinInput = document.getElementById('withdrawPinInput');
+        if (pinInput) {
+            pinInput.addEventListener('input', function(e) {
+                this.value = this.value.replace(/[^0-9]/g, '').slice(0, 6);
+            });
+        }
 
         // Close modals when clicking outside
         document.getElementById('profileModal')?.addEventListener('click', function(e) {

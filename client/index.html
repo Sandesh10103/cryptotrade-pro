@@ -253,6 +253,54 @@
             background: rgba(0,212,255,0.2);
             color: #00d4ff;
         }
+        /* Mobile Responsive Fixes - ADD THIS AT THE BOTTOM OF YOUR STYLE SECTION */
+@media (max-width: 768px) {
+    .container {
+        width: 95%;
+        margin: 10px auto;
+    }
+    
+    .form-container {
+        padding: 20px;
+    }
+    
+    .input-group input {
+        padding: 12px 14px;
+        font-size: 16px;
+    }
+    
+    .btn {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
+    h2 {
+        font-size: 20px;
+    }
+    
+    .info-box p {
+        font-size: 11px;
+    }
+    
+    .tabs .tab {
+        padding: 12px;
+        font-size: 14px;
+    }
+    
+    body {
+        padding: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .form-container {
+        padding: 15px;
+    }
+    
+    .input-group {
+        margin-bottom: 15px;
+    }
+}
     </style>
 </head>
 <body>
@@ -351,10 +399,30 @@
 
     <script>
         // ============ API CONFIGURATION ============
-        // Use relative paths - works on any port
         const API_URL = '';
         
         console.log('🔗 API URL:', API_URL || '(using relative paths)');
+
+        // ============ HEARTBEAT FOR ONLINE STATUS ============
+        let heartbeatInterval = null;
+        
+        function startHeartbeat() {
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            heartbeatInterval = setInterval(async () => {
+                const token = localStorage.getItem('token');
+                if (token) {
+                    try {
+                        await fetch('/api/user/heartbeat', {
+                            method: 'POST',
+                            headers: { 'Authorization': `Bearer ${token}` }
+                        });
+                        console.log('💓 Heartbeat sent');
+                    } catch (error) {
+                        console.log('Heartbeat failed:', error);
+                    }
+                }
+            }, 30000);
+        }
 
         // ============ REFERRAL CODE HANDLING ============
         let isValidReferral = false;
@@ -508,6 +576,10 @@
                     localStorage.setItem('userEmail', email);
                     localStorage.setItem('userName', data.user.name);
                     messageDiv.innerHTML = '<span class="success">Login successful! Redirecting...</span>';
+                    
+                    // Start heartbeat after login
+                    startHeartbeat();
+                    
                     setTimeout(() => {
                         window.location.href = '/dashboard.html';
                     }, 1500);
@@ -588,8 +660,16 @@
                     if (referralCode && isValidReferral) {
                         successMsg += '🎉 You received 50 referral bonus points! ';
                     }
-                    successMsg += 'Redirecting to dashboard...';
                     messageDiv.innerHTML = `<span class="success">${successMsg}</span>`;
+                    
+                    // Clear form
+                    document.getElementById('signupName').value = '';
+                    document.getElementById('signupEmail').value = '';
+                    document.getElementById('signupPassword').value = '';
+                    document.getElementById('signupConfirmPassword').value = '';
+                    document.getElementById('withdrawPin').value = '';
+                    document.getElementById('confirmWithdrawPin').value = '';
+                    if (referralInput) referralInput.value = '';
                     
                     // Auto login
                     const loginResponse = await fetch('/api/login', {
@@ -604,6 +684,10 @@
                         localStorage.setItem('token', loginData.token);
                         localStorage.setItem('userEmail', email);
                         localStorage.setItem('userName', name);
+                        
+                        // Start heartbeat after signup
+                        startHeartbeat();
+                        
                         setTimeout(() => {
                             window.location.href = '/dashboard.html';
                         }, 2000);
@@ -613,6 +697,7 @@
                         setTimeout(() => {
                             switchTab('login');
                             document.getElementById('loginEmail').value = email;
+                            hideLoading();
                         }, 2000);
                     }
                 } else {
@@ -638,6 +723,19 @@
         if (confirmPin) {
             confirmPin.addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') handleSignup();
+            });
+        }
+        
+        // Check if user is already logged in
+        const token = localStorage.getItem('token');
+        if (token && window.location.pathname !== '/dashboard.html') {
+            // Verify token is still valid
+            fetch('/api/user/data', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            }).then(response => {
+                if (response.ok) {
+                    startHeartbeat();
+                }
             });
         }
     </script>
