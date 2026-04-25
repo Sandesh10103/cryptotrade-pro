@@ -88,7 +88,6 @@ function loadUsers() {
             const data = fs.readFileSync(usersFile, 'utf8');
             let loadedUsers = JSON.parse(data);
             
-            // CRITICAL FIX: Ensure users is always an array
             if (!Array.isArray(loadedUsers)) {
                 console.log('⚠️ Users file was not an array, converting to array...');
                 loadedUsers = [loadedUsers];
@@ -100,12 +99,10 @@ function loadUsers() {
             console.log('📊 Users array is now array?', Array.isArray(users));
         } catch (error) {
             console.log('⚠️ Error loading users:', error.message);
-            // If file is corrupted, create new empty array
             users = [];
             fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
         }
     } else {
-        // Create empty users file if it doesn't exist
         fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
         console.log('📁 Created new users.json file');
     }
@@ -113,15 +110,28 @@ function loadUsers() {
 
 function saveUsers() {
     try {
-        // Ensure directory exists
         if (!fs.existsSync(dataDir)) {
             fs.mkdirSync(dataDir, { recursive: true });
         }
         
-        // CRITICAL FIX: Always ensure users is an array before saving
         if (!Array.isArray(users)) {
             console.error('❌ CRITICAL: users is not an array! Converting...');
             users = users ? [users] : [];
+        }
+        
+        // Create backup before saving
+        if (fs.existsSync(usersFile)) {
+            const backupFile = `${usersFile}.backup.${Date.now()}`;
+            fs.copyFileSync(usersFile, backupFile);
+            
+            // Keep only last 5 backups
+            const backups = fs.readdirSync(dataDir)
+                .filter(f => f.startsWith('users.json.backup.'))
+                .sort()
+                .reverse();
+            backups.slice(5).forEach(b => {
+                fs.unlinkSync(path.join(dataDir, b));
+            });
         }
         
         const usersToSave = users.map(u => ({
@@ -158,12 +168,14 @@ function saveUsers() {
             referralBonusGiven: u.referralBonusGiven || false
         }));
         
-        fs.writeFileSync(usersFile, JSON.stringify(usersToSave, null, 2));
-        console.log('💾 Saved', users.length, 'users to file - Array format:', Array.isArray(usersToSave));
+        const tempFile = `${usersFile}.tmp`;
+        fs.writeFileSync(tempFile, JSON.stringify(usersToSave, null, 2));
+        fs.renameSync(tempFile, usersFile);
+        
+        console.log('💾 Saved', users.length, 'users to file');
         return true;
     } catch (error) {
         console.error('❌ Error saving users:', error.message);
-        console.error('❌ File path:', usersFile);
         return false;
     }
 }
@@ -266,7 +278,7 @@ loadReferrals();
 
 app.use('/uploads', express.static(uploadDir));
 
-// ============ STATIC FILE SERVING FOR RENDER ============
+// ============ STATIC FILE SERVING ============
 const clientPath = path.join(__dirname, '..', 'client');
 console.log('📁 Serving static files from:', clientPath);
 
@@ -530,13 +542,12 @@ app.get('/api/crypto/price/:symbol', async (req, res) => {
     });
 });
 
-// ============ FIXED USER SYSTEM ============
+// ============ USER SYSTEM ============
 
 app.post('/api/signup', async (req, res) => {
     console.log('📝 Signup attempt:', req.body.email);
     const { name, email, password, withdrawPin, phone, referralCode } = req.body;
     
-    // Check if user exists
     if (users.find(u => u.email === email)) {
         return res.status(400).json({ message: 'User already exists' });
     }
@@ -560,7 +571,6 @@ app.post('/api/signup', async (req, res) => {
         }
     }
     
-    // Generate unique ID
     const newId = users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1;
     
     const newUser = {
@@ -586,7 +596,7 @@ app.post('/api/signup', async (req, res) => {
         accountType: 'Standard',
         createdAt: new Date().toISOString(),
         activeMode: 'demo',
-        referralCode: null, // Will set after push
+        referralCode: null,
         referredBy: referrerId,
         referralPoints: 0,
         totalPointsEarned: 0,
@@ -597,23 +607,16 @@ app.post('/api/signup', async (req, res) => {
         referralBonusGiven: false
     };
     
-    // Add to users array
     users.push(newUser);
-    console.log(`📝 User added to array. Total users in memory: ${users.length}`);
-    
-    // Generate referral code after user has ID
     newUser.referralCode = generateReferralCode(newUser.id, newUser.email);
     
     let referralMessagesAdded = false;
     
-    // NEW REFERRAL SYSTEM: 50 points on signup for BOTH
     if (referralValid && referrerId) {
         const referrer = users.find(u => u.id === referrerId);
         if (referrer) {
             referrer.totalReferrals = (referrer.totalReferrals || 0) + 1;
             referrer.pendingReferrals = (referrer.pendingReferrals || 0) + 1;
-            
-            // Give referrer 50 points immediately
             referrer.referralPoints = (referrer.referralPoints || 0) + 50;
             referrer.totalPointsEarned = (referrer.totalPointsEarned || 0) + 50;
             
@@ -621,7 +624,7 @@ app.post('/api/signup', async (req, res) => {
                 id: messages.length + 1,
                 userId: referrer.id,
                 userName: 'System',
-                text: `🎉 ${name} signed up using your referral code! You earned 50 points! You'll get another 50 points when they complete their first REAL trade!`,
+                text: `🎉 ${name} signed up using your referral code! You earned 50 points!`,
                 sender: 'admin',
                 timestamp: new Date().toISOString(),
                 read: false,
@@ -632,7 +635,6 @@ app.post('/api/signup', async (req, res) => {
     }
     
     if (referralValid) {
-        // Give new user 50 points immediately
         newUser.referralPoints = 50;
         newUser.totalPointsEarned = 50;
         
@@ -640,7 +642,7 @@ app.post('/api/signup', async (req, res) => {
             id: messages.length + 1,
             userId: newUser.id,
             userName: 'System',
-            text: `🎉 Welcome! You've received 50 referral bonus points! You'll get another 50 points when you complete your first REAL trade!`,
+            text: `🎉 Welcome! You've received 50 referral bonus points!`,
             sender: 'admin',
             timestamp: new Date().toISOString(),
             read: false,
@@ -653,17 +655,25 @@ app.post('/api/signup', async (req, res) => {
         saveMessages();
     }
     
-    // CRITICAL: Save users immediately after adding
-    const userSaved = saveUsers();
-    if (!userSaved) {
+    // Multiple saves to ensure data persistence
+    const saveResult = saveUsers();
+    if (!saveResult) {
         console.error('❌ CRITICAL: Failed to save user!');
         return res.status(500).json({ message: 'Unable to save new user' });
+    }
+    
+    // Verify save
+    const verifyUsers = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+    const userExists = verifyUsers.find(u => u.email === email);
+    
+    if (!userExists) {
+        console.error('❌ CRITICAL: User was not saved to disk!');
+        return res.status(500).json({ message: 'Account creation failed - please try again' });
     }
     
     console.log('✅ User created successfully!');
     console.log(`   Name: ${newUser.name}`);
     console.log(`   Email: ${newUser.email}`);
-    console.log(`   ID: ${newUser.id}`);
     console.log(`   Total users now: ${users.length}`);
     
     res.json({ 
@@ -694,6 +704,9 @@ app.post('/api/login', async (req, res) => {
     }
     
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
+    
+    // Update online status
+    onlineUsers.set(user.id, { status: 'online', lastSeen: new Date().toISOString(), lastHeartbeat: Date.now() });
     
     const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
         year: 'numeric',
@@ -944,7 +957,7 @@ app.post('/api/user/verify-pin', async (req, res) => {
     }
 });
 
-// ============ TRADE ENDPOINT - NO PIN REQUIRED ============
+// ============ TRADE ENDPOINT ============
 
 app.post('/api/trade', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -962,11 +975,7 @@ app.post('/api/trade', async (req, res) => {
         
         const { amount, direction, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
         
-        console.log('📥 Received trade request:', {
-            amount, direction, crypto, duration,
-            won: won, wonType: typeof won,
-            priceAtTrade, exitPrice
-        });
+        console.log('📥 Received trade request:', { amount, direction, crypto, duration, won });
         
         if (!amount || !direction || !crypto) {
             return res.status(400).json({ message: 'Missing required trade fields' });
@@ -1044,63 +1053,7 @@ app.post('/api/trade', async (req, res) => {
         saveTrades();
         saveUsers();
         
-        console.log(`═══════════════════════════════════════════════`);
-        console.log(`✅ TRADE SAVED for ${user.name}`);
-        console.log(`   Mode: ${currentMode.toUpperCase()}`);
-        console.log(`   Amount: $${amount}`);
-        console.log(`   Direction: ${direction}`);
-        console.log(`   Result: ${isWin ? 'WIN ✅' : 'LOSS ❌'}`);
-        console.log(`   Balance Change: ${balanceChange >= 0 ? '+' : ''}$${balanceChange.toFixed(2)}`);
-        console.log(`   Old Balance: $${oldBalance.toFixed(2)}`);
-        console.log(`   New Balance: $${newBalance.toFixed(2)}`);
-        console.log(`   Trade ID: ${newTrade.id}`);
-        console.log(`═══════════════════════════════════════════════`);
-        
-        // NEW REFERRAL SYSTEM: Additional 50 points on first REAL trade
-        const userRealTradesCount = trades.filter(t => t.userId === user.id && t.mode === 'real').length;
-        if (userRealTradesCount === 1 && user.referredBy && !user.referralBonusGiven) {
-            user.referralBonusGiven = true;
-            user.completedReferrals = (user.completedReferrals || 0) + 1;
-            
-            const referrer = users.find(u => u.id === user.referredBy);
-            if (referrer) {
-                // Give referrer additional 50 points for first REAL trade
-                referrer.referralPoints = (referrer.referralPoints || 0) + 50;
-                referrer.totalPointsEarned = (referrer.totalPointsEarned || 0) + 50;
-                referrer.completedReferrals = (referrer.completedReferrals || 0) + 1;
-                referrer.pendingReferrals = Math.max(0, (referrer.pendingReferrals || 0) - 1);
-                
-                messages.push({
-                    id: messages.length + 1,
-                    userId: referrer.id,
-                    userName: 'System',
-                    text: `🎉 Your referral ${user.name} completed their first REAL trade! You earned 50 additional points! Total earned from this referral: 100 points!`,
-                    sender: 'admin',
-                    timestamp: new Date().toISOString(),
-                    read: false,
-                    adminRead: true
-                });
-                saveMessages();
-                saveUsers();
-            }
-            
-            // Give new user additional 50 points for first REAL trade
-            user.referralPoints = (user.referralPoints || 0) + 50;
-            user.totalPointsEarned = (user.totalPointsEarned || 0) + 50;
-            saveUsers();
-            
-            messages.push({
-                id: messages.length + 1,
-                userId: user.id,
-                userName: 'System',
-                text: `🎉 Congratulations on your first REAL trade! You earned 50 additional points! Total referral points: 100! Keep trading to earn more!`,
-                sender: 'admin',
-                timestamp: new Date().toISOString(),
-                read: false,
-                adminRead: true
-            });
-            saveMessages();
-        }
+        console.log(`✅ TRADE SAVED for ${user.name}: ${isWin ? 'WIN' : 'LOSS'} - $${balanceChange.toFixed(2)}`);
         
         res.json({
             success: true,
@@ -1128,10 +1081,8 @@ app.get('/api/trades', async (req, res) => {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         const userTrades = trades.filter(t => t.userId === decoded.userId);
-        console.log('📊 Fetching trades for user', decoded.userId, ':', userTrades.length, 'trades found');
         res.json({ trades: userTrades });
     } catch (error) {
-        console.log('❌ Trades error:', error.message);
         res.status(401).json({ message: 'Invalid token' });
     }
 });
@@ -1163,59 +1114,6 @@ app.get('/api/stats', async (req, res) => {
     } catch (error) {
         console.error('Stats error:', error);
         res.status(401).json({ message: 'Invalid token' });
-    }
-});
-
-app.get('/api/debug/user-stats', async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'No token' });
-    
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const user = users.find(u => u.id === decoded.userId);
-        const userTrades = trades.filter(t => t.userId === decoded.userId);
-        
-        let totalStake = 0;
-        let totalProfit = 0;
-        let wins = 0;
-        let losses = 0;
-        
-        userTrades.forEach(t => {
-            totalStake += t.amount || 0;
-            if (t.won) {
-                wins++;
-                totalProfit += t.profit || 0;
-            } else {
-                losses++;
-                totalProfit += t.profit || 0;
-            }
-        });
-        
-        res.json({
-            userId: user.id,
-            name: user.name,
-            mode: user.activeMode,
-            demoBalance: user.demoBalance,
-            realBalance: user.realBalance,
-            stats: {
-                totalTrades: userTrades.length,
-                wins: wins,
-                losses: losses,
-                winRate: userTrades.length > 0 ? (wins / userTrades.length * 100).toFixed(1) : 0,
-                totalStake: totalStake,
-                totalProfit: totalProfit,
-                netResult: totalProfit
-            },
-            recentTrades: userTrades.slice(-5).map(t => ({
-                amount: t.amount,
-                won: t.won,
-                profit: t.profit,
-                result: t.result,
-                timestamp: t.timestamp
-            }))
-        });
-    } catch (error) {
-        res.status(401).json({ message: 'Invalid token', error: error.message });
     }
 });
 
@@ -1383,38 +1281,61 @@ app.get('/api/admin/users', async (req, res) => {
     })) });
 });
 
-// ============ ONLINE STATUS ============
+// ============ ONLINE STATUS - IMPROVED ============
 
 app.post('/api/user/heartbeat', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
-    if (!token) return res.status(401).json({ message: 'No token' });
+    if (!token) {
+        return res.status(401).json({ message: 'No token' });
+    }
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
-        onlineUsers.set(decoded.userId, { status: 'online', lastSeen: new Date().toISOString() });
-        res.json({ status: 'online' });
+        const userId = decoded.userId;
+        
+        onlineUsers.set(userId, { 
+            status: 'online', 
+            lastSeen: new Date().toISOString(),
+            lastHeartbeat: Date.now()
+        });
+        
+        // Clean up old entries (older than 2 minutes)
+        const now = Date.now();
+        for (let [id, data] of onlineUsers) {
+            if (now - (data.lastHeartbeat || 0) > 120000) {
+                onlineUsers.delete(id);
+            }
+        }
+        
+        res.json({ status: 'online', timestamp: new Date().toISOString() });
     } catch (error) {
         res.status(401).json({ message: 'Invalid token' });
     }
 });
 
 app.get('/api/admin/users-with-status', async (req, res) => {
-    const usersWithStatus = users.map(u => {
-        const userStatus = onlineUsers.get(u.id);
-        const isOnline = userStatus && (Date.now() - new Date(userStatus.lastSeen).getTime()) < 60000;
-        
-        return {
-            id: u.id,
-            name: u.name,
-            email: u.email,
-            demoBalance: u.demoBalance,
-            realBalance: u.realBalance,
-            status: isOnline ? 'online' : 'offline',
-            lastSeen: userStatus?.lastSeen || u.createdAt,
-            referralPoints: u.referralPoints || 0,
-            totalReferrals: u.totalReferrals || 0
-        };
-    });
-    res.json({ users: usersWithStatus });
+    try {
+        const now = Date.now();
+        const usersWithStatus = users.map(u => {
+            const userStatus = onlineUsers.get(u.id);
+            const isOnline = userStatus && (now - (userStatus.lastHeartbeat || 0)) < 60000;
+            
+            return {
+                id: u.id,
+                name: u.name,
+                email: u.email,
+                demoBalance: u.demoBalance,
+                realBalance: u.realBalance,
+                status: isOnline ? 'online' : 'offline',
+                lastSeen: userStatus?.lastSeen || u.createdAt,
+                referralPoints: u.referralPoints || 0,
+                totalReferrals: u.totalReferrals || 0
+            };
+        });
+        res.json({ users: usersWithStatus });
+    } catch (error) {
+        console.error('Error getting users with status:', error);
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // ============ DEPOSIT SYSTEM ============
@@ -1670,6 +1591,82 @@ app.post('/api/admin/withdraw/reject', async (req, res) => {
     res.json({ message: 'Withdrawal rejected, funds refunded', withdrawal });
 });
 
+// ============ DELETE USER ENDPOINT ============
+app.delete('/api/admin/delete-user/:userId', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const adminUser = users.find(u => u.id === decoded.userId);
+        if (!adminUser || adminUser.email !== 'sa@gmail.com') {
+            return res.status(403).json({ message: 'Admin access required' });
+        }
+        
+        const userId = parseInt(req.params.userId);
+        let usersList = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        
+        const userToDelete = usersList.find(u => u.id === userId);
+        if (!userToDelete) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+        
+        if (userToDelete.email === 'sa@gmail.com') {
+            return res.status(403).json({ message: 'Cannot delete main admin account' });
+        }
+        
+        usersList = usersList.filter(u => u.id !== userId);
+        usersList = usersList.map((u, index) => ({ ...u, id: index + 1 }));
+        fs.writeFileSync(usersFile, JSON.stringify(usersList, null, 2));
+        
+        // Update in-memory users
+        users.length = 0;
+        users.push(...usersList);
+        
+        // Remove user's trades
+        if (fs.existsSync(tradesFile)) {
+            let allTrades = JSON.parse(fs.readFileSync(tradesFile, 'utf8'));
+            allTrades = allTrades.filter(t => t.userId !== userId);
+            fs.writeFileSync(tradesFile, JSON.stringify(allTrades, null, 2));
+        }
+        
+        console.log(`🗑️ User deleted: ${userToDelete.name} (${userToDelete.email})`);
+        
+        res.json({ 
+            success: true, 
+            message: `User ${userToDelete.name} deleted successfully`,
+            remainingUsers: usersList.length
+        });
+        
+    } catch (error) {
+        console.error('Delete user error:', error);
+        res.status(500).json({ message: 'Error deleting user', error: error.message });
+    }
+});
+
+app.get('/api/admin/all-users', async (req, res) => {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+        return res.status(401).json({ message: 'No token provided' });
+    }
+    
+    try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        const adminUser = users.find(u => u.id === decoded.userId);
+        
+        if (!adminUser || adminUser.email !== 'sa@gmail.com') {
+            return res.status(403).json({ message: 'Admin access required' });
+        }
+        
+        const usersList = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
+        res.json({ users: usersList });
+    } catch (error) {
+        res.status(500).json({ message: 'Error fetching users' });
+    }
+});
+
 // ============ TRANSACTIONS ============
 
 app.get('/api/transactions', async (req, res) => {
@@ -1743,7 +1740,6 @@ app.get('/api/referral/invite-link', async (req, res) => {
     }
 });
 
-// ========== CHECK AUTH ENDPOINT ==========
 app.get('/api/check-auth', (req, res) => {
     res.json({ 
         success: true, 
@@ -1752,7 +1748,6 @@ app.get('/api/check-auth', (req, res) => {
     });
 });
 
-// Debug endpoint to check users.json format
 app.get('/api/debug/users-format', (req, res) => {
     try {
         const data = fs.readFileSync(usersFile, 'utf8');
@@ -1787,89 +1782,18 @@ process.on('SIGINT', () => {
     saveReferrals();
     process.exit();
 });
-// ============ DELETE USER ENDPOINT ============
-app.delete('/api/admin/delete-user/:userId', async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-        return res.status(401).json({ message: 'No token provided' });
-    }
-    
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        
-        // Check if admin (you can add proper admin check)
-        // For now, allow any authenticated user or hardcode email check
-        const adminUser = users.find(u => u.id === decoded.userId);
-        if (!adminUser || adminUser.email !== 'sa@gmail.com') {
-            return res.status(403).json({ message: 'Admin access required' });
-        }
-        
-        const userId = parseInt(req.params.userId);
-        let usersList = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
-        
-        // Find user to delete
-        const userToDelete = usersList.find(u => u.id === userId);
-        if (!userToDelete) {
-            return res.status(404).json({ message: 'User not found' });
-        }
-        
-        // Don't allow deleting the main admin
-        if (userToDelete.email === 'sa@gmail.com') {
-            return res.status(403).json({ message: 'Cannot delete main admin account' });
-        }
-        
-        // Remove user
-        usersList = usersList.filter(u => u.id !== userId);
-        
-        // Reorder IDs
-        usersList = usersList.map((u, index) => ({ ...u, id: index + 1 }));
-        
-        // Save to file
-        fs.writeFileSync(usersFile, JSON.stringify(usersList, null, 2));
-        
-        // Also remove user's trades (optional)
-        let allTrades = [];
-        if (fs.existsSync(tradesFile)) {
-            allTrades = JSON.parse(fs.readFileSync(tradesFile, 'utf8'));
-            allTrades = allTrades.filter(t => t.userId !== userId);
-            fs.writeFileSync(tradesFile, JSON.stringify(allTrades, null, 2));
-        }
-        
-        console.log(`🗑️ User deleted: ${userToDelete.name} (${userToDelete.email})`);
-        
-        res.json({ 
-            success: true, 
-            message: `User ${userToDelete.name} deleted successfully`,
-            remainingUsers: usersList.length
-        });
-        
-    } catch (error) {
-        console.error('Delete user error:', error);
-        res.status(500).json({ message: 'Error deleting user', error: error.message });
-    }
+
+process.on('SIGTERM', () => {
+    console.log('📝 Saving data before termination...');
+    saveUsers();
+    saveTrades();
+    saveMessages();
+    saveDeposits();
+    saveWithdrawals();
+    saveReferrals();
+    process.exit();
 });
 
-// Get all users with details (for admin)
-app.get('/api/admin/all-users', async (req, res) => {
-    const token = req.headers.authorization?.split(' ')[1];
-    if (!token) {
-        return res.status(401).json({ message: 'No token provided' });
-    }
-    
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET);
-        const adminUser = users.find(u => u.id === decoded.userId);
-        
-        if (!adminUser || adminUser.email !== 'sa@gmail.com') {
-            return res.status(403).json({ message: 'Admin access required' });
-        }
-        
-        const usersList = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
-        res.json({ users: usersList });
-    } catch (error) {
-        res.status(500).json({ message: 'Error fetching users' });
-    }
-});
 // ============ START SERVER ============
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
