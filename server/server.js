@@ -35,12 +35,15 @@ const upload = multer({ storage: storage, limits: { fileSize: 5 * 1024 * 1024 } 
 
 // Data storage
 let users = [];
-const trades = [];
+let trades = [];
 const messages = [];
 const deposits = [];
 const withdrawals = [];
 const onlineUsers = new Map();
 const referralTransactions = [];
+
+// ============ DUPLICATE TRADE PROTECTION ============
+const recentTrades = new Map(); // Track recent trades to prevent duplicates
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your_secret_key_change_this';
 const SALT_ROUNDS = 10;
@@ -65,11 +68,15 @@ function loadTrades() {
         try {
             const data = fs.readFileSync(tradesFile, 'utf8');
             const loadedTrades = JSON.parse(data);
-            trades.push(...loadedTrades);
-            console.log('✅ Loaded', loadedTrades.length, 'trades from file');
+            trades = loadedTrades; // Assign directly instead of push
+            console.log('✅ Loaded', trades.length, 'trades from file');
         } catch (error) {
             console.log('⚠️ Error loading trades:', error.message);
+            trades = [];
         }
+    } else {
+        trades = [];
+        console.log('📁 No trades file found, starting fresh');
     }
 }
 
@@ -80,6 +87,54 @@ function saveTrades() {
     } catch (error) {
         console.log('❌ Error saving trades:', error.message);
     }
+}
+
+// ============ CLEANUP DUPLICATE TRADES FUNCTION ============
+function cleanupDuplicateTrades() {
+    console.log('🧹 Checking for duplicate trades...');
+    const uniqueTrades = new Map();
+    const duplicatesRemoved = [];
+    
+    for (const trade of trades) {
+        // Create a unique key based on trade properties
+        const tradeTime = new Date(trade.timestamp).toISOString().slice(0, 19); // Group by same second
+        const key = `${trade.userId}_${trade.crypto}_${trade.amount}_${trade.direction}_${tradeTime}`;
+        
+        if (!uniqueTrades.has(key)) {
+            uniqueTrades.set(key, trade);
+        } else {
+            duplicatesRemoved.push(trade);
+        }
+    }
+    
+    if (duplicatesRemoved.length > 0) {
+        console.log(`🗑️ Found ${duplicatesRemoved.length} duplicate trades, cleaning up...`);
+        trades.length = 0;
+        trades.push(...uniqueTrades.values());
+        
+        // Also recalculate user stats
+        for (const user of users) {
+            const userTrades = trades.filter(t => t.userId === user.id);
+            const wins = userTrades.filter(t => t.won === true).length;
+            const losses = userTrades.filter(t => t.won === false).length;
+            const totalProfit = userTrades.reduce((sum, t) => sum + (t.profit || 0), 0);
+            
+            if (user.activeMode === 'demo') {
+                user.demoTotalTrades = userTrades.filter(t => t.mode === 'demo').length;
+                user.demoWins = userTrades.filter(t => t.mode === 'demo' && t.won === true).length;
+                user.demoLosses = userTrades.filter(t => t.mode === 'demo' && t.won === false).length;
+                user.demoTotalProfit = userTrades.filter(t => t.mode === 'demo').reduce((sum, t) => sum + (t.profit || 0), 0);
+            } else {
+                user.realTotalTrades = userTrades.filter(t => t.mode === 'real').length;
+                user.realWins = userTrades.filter(t => t.mode === 'real' && t.won === true).length;
+                user.realLosses = userTrades.filter(t => t.mode === 'real' && t.won === false).length;
+                user.realTotalProfit = userTrades.filter(t => t.mode === 'real').reduce((sum, t) => sum + (t.profit || 0), 0);
+            }
+        }
+        saveTrades();
+        saveUsers();
+    }
+    console.log(`✅ Total unique trades: ${trades.length}`);
 }
 
 function loadUsers() {
@@ -94,15 +149,15 @@ function loadUsers() {
                 fs.writeFileSync(usersFile, JSON.stringify(loadedUsers, null, 2));
             }
             
-            users.push(...loadedUsers);
-            console.log('✅ Loaded', loadedUsers.length, 'users from file');
-            console.log('📊 Users array is now array?', Array.isArray(users));
+            users = loadedUsers;
+            console.log('✅ Loaded', users.length, 'users from file');
         } catch (error) {
             console.log('⚠️ Error loading users:', error.message);
             users = [];
             fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
         }
     } else {
+        users = [];
         fs.writeFileSync(usersFile, JSON.stringify([], null, 2));
         console.log('📁 Created new users.json file');
     }
@@ -275,6 +330,11 @@ loadMessages();
 loadDeposits();
 loadWithdrawals();
 loadReferrals();
+
+// Run duplicate trade cleanup after loading
+setTimeout(() => {
+    cleanupDuplicateTrades();
+}, 1000);
 
 app.use('/uploads', express.static(uploadDir));
 
@@ -655,20 +715,10 @@ app.post('/api/signup', async (req, res) => {
         saveMessages();
     }
     
-    // Multiple saves to ensure data persistence
     const saveResult = saveUsers();
     if (!saveResult) {
         console.error('❌ CRITICAL: Failed to save user!');
         return res.status(500).json({ message: 'Unable to save new user' });
-    }
-    
-    // Verify save
-    const verifyUsers = JSON.parse(fs.readFileSync(usersFile, 'utf8'));
-    const userExists = verifyUsers.find(u => u.email === email);
-    
-    if (!userExists) {
-        console.error('❌ CRITICAL: User was not saved to disk!');
-        return res.status(500).json({ message: 'Account creation failed - please try again' });
     }
     
     console.log('✅ User created successfully!');
@@ -705,7 +755,6 @@ app.post('/api/login', async (req, res) => {
     
     const token = jwt.sign({ userId: user.id, email: user.email }, JWT_SECRET, { expiresIn: '24h' });
     
-    // Update online status
     onlineUsers.set(user.id, { status: 'online', lastSeen: new Date().toISOString(), lastHeartbeat: Date.now() });
     
     const memberSince = user.createdAt ? new Date(user.createdAt).toLocaleDateString('en-US', {
@@ -957,8 +1006,7 @@ app.post('/api/user/verify-pin', async (req, res) => {
     }
 });
 
-// ============ TRADE ENDPOINT ============
-
+// ============ TRADE ENDPOINT WITH DUPLICATE PROTECTION ============
 app.post('/api/trade', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) {
@@ -975,11 +1023,27 @@ app.post('/api/trade', async (req, res) => {
         
         const { amount, direction, priceAtTrade, crypto, exitPrice, changePercent, duration, won } = req.body;
         
-        console.log('📥 Received trade request:', { amount, direction, crypto, duration, won });
+        console.log('📥 Received trade request:', { amount, direction, crypto, duration, won, userId: user.id });
         
         if (!amount || !direction || !crypto) {
             return res.status(400).json({ message: 'Missing required trade fields' });
         }
+        
+        // ============ DUPLICATE PROTECTION ============
+        const requestId = `${user.id}_${crypto}_${amount}_${direction}_${Date.now().toString().slice(0, 10)}`;
+        
+        if (recentTrades.has(requestId)) {
+            console.log('⚠️ Duplicate trade detected and blocked:', requestId);
+            return res.status(409).json({ 
+                success: false,
+                message: 'Duplicate trade request blocked', 
+                alreadyProcessed: true 
+            });
+        }
+        
+        recentTrades.set(requestId, Date.now());
+        setTimeout(() => recentTrades.delete(requestId), 3000);
+        // ============ END DUPLICATE PROTECTION ============
         
         const currentMode = user.activeMode || 'demo';
         let currentBalance = currentMode === 'demo' ? user.demoBalance : user.realBalance;
@@ -1003,8 +1067,6 @@ app.post('/api/trade', async (req, res) => {
         } else {
             balanceChange = -amount;
         }
-        
-        const oldBalance = currentBalance;
         
         if (currentMode === 'demo') {
             user.demoBalance += balanceChange;
@@ -1054,6 +1116,7 @@ app.post('/api/trade', async (req, res) => {
         saveUsers();
         
         console.log(`✅ TRADE SAVED for ${user.name}: ${isWin ? 'WIN' : 'LOSS'} - $${balanceChange.toFixed(2)}`);
+        console.log(`   Total trades now: ${trades.length}`);
         
         res.json({
             success: true,
@@ -1244,7 +1307,7 @@ app.post('/api/admin/reply', async (req, res) => {
 
 app.get('/api/admin/messages/:userId', async (req, res) => {
     const userId = parseInt(req.params.userId);
-    const userMessages = messages.filter(m => m.userId === userId || m.userId === 'admin');
+    const userMessages = messages.filter(m => m.userId === userId);
     userMessages.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     res.json({ messages: userMessages });
 });
@@ -1281,7 +1344,7 @@ app.get('/api/admin/users', async (req, res) => {
     })) });
 });
 
-// ============ ONLINE STATUS - IMPROVED ============
+// ============ ONLINE STATUS ============
 
 app.post('/api/user/heartbeat', async (req, res) => {
     const token = req.headers.authorization?.split(' ')[1];
@@ -1298,7 +1361,6 @@ app.post('/api/user/heartbeat', async (req, res) => {
             lastHeartbeat: Date.now()
         });
         
-        // Clean up old entries (older than 2 minutes)
         const now = Date.now();
         for (let [id, data] of onlineUsers) {
             if (now - (data.lastHeartbeat || 0) > 120000) {
@@ -1621,15 +1683,16 @@ app.delete('/api/admin/delete-user/:userId', async (req, res) => {
         usersList = usersList.map((u, index) => ({ ...u, id: index + 1 }));
         fs.writeFileSync(usersFile, JSON.stringify(usersList, null, 2));
         
-        // Update in-memory users
         users.length = 0;
         users.push(...usersList);
         
-        // Remove user's trades
         if (fs.existsSync(tradesFile)) {
             let allTrades = JSON.parse(fs.readFileSync(tradesFile, 'utf8'));
             allTrades = allTrades.filter(t => t.userId !== userId);
+            allTrades = allTrades.map((t, index) => ({ ...t, id: index + 1 }));
             fs.writeFileSync(tradesFile, JSON.stringify(allTrades, null, 2));
+            trades.length = 0;
+            trades.push(...allTrades);
         }
         
         console.log(`🗑️ User deleted: ${userToDelete.name} (${userToDelete.email})`);
@@ -1798,6 +1861,7 @@ process.on('SIGTERM', () => {
 app.listen(PORT, () => {
     console.log(`✅ Server running on http://localhost:${PORT}`);
     console.log(`📊 Total users: ${users.length}`);
+    console.log(`📈 Total trades: ${trades.length}`);
     console.log(`🪙 Real crypto prices enabled`);
     console.log(`🎁 Referral system enabled (${POINTS_TO_DOLLAR_RATE} points = $1)`);
     console.log(`📈 Trade payout: ${TRADE_PAYOUT_PERCENTAGE * 100}% on wins`);
