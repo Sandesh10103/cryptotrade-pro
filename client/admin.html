@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel - CryptoTrade Support</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>CryptoTrade Admin | Support Dashboard</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Inter', sans-serif; background: #0a0e27; color: #fff; }
-        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
         
         .header {
             display: flex; justify-content: space-between; align-items: center;
@@ -52,15 +52,9 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            animation: bounce 0.5s ease;
-        }
-        @keyframes bounce {
-            0% { transform: scale(0.5); opacity: 0; }
-            50% { transform: scale(1.2); }
-            100% { transform: scale(1); opacity: 1; }
         }
         
-        .main-grid { display: grid; grid-template-columns: 350px 1fr; gap: 24px; height: calc(100vh - 120px); }
+        .main-grid { display: grid; grid-template-columns: 360px 1fr; gap: 24px; height: calc(100vh - 120px); }
         
         .users-section {
             background: rgba(18,25,55,0.6); backdrop-filter: blur(20px);
@@ -100,7 +94,6 @@
             color: #8a92b0;
             display: none;
         }
-        .clear-search:hover { color: #ff4757; }
         
         .filter-buttons {
             display: flex;
@@ -131,7 +124,7 @@
         .user-item:hover { background: rgba(0,212,255,0.1); transform: translateX(4px); }
         .user-item.active { background: rgba(0,212,255,0.15); border-color: #00d4ff; }
         .user-name { font-weight: 700; font-size: 16px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-        .user-email { font-size: 11px; color: #8a92b0; margin-top: 4px; }
+        .user-email { font-size: 11px; color: #8a92b0; margin-top: 4px; word-break: break-all; }
         .user-balance { font-size: 12px; color: #00d4ff; margin-top: 6px; }
         
         .delete-user-btn {
@@ -191,6 +184,8 @@
             font-weight: bold;
             padding: 2px 6px;
             border-radius: 20px;
+            min-width: 20px;
+            text-align: center;
         }
         .last-seen { font-size: 10px; color: #5a6280; margin-top: 4px; }
         
@@ -202,7 +197,13 @@
         .chat-header { padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .chat-with { font-size: 18px; font-weight: 700; }
         .chat-with span { color: #00d4ff; }
-        .chat-messages { flex: 1; overflow-y: auto; padding: 20px; }
+        .chat-messages { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
         .chat-message { margin-bottom: 20px; display: flex; flex-direction: column; animation: fadeIn 0.3s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .chat-message.user { align-items: flex-start; }
@@ -341,12 +342,6 @@
         .confirm-btn { background: #ff4757; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
         .cancel-btn { background: #8a92b0; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: 600; }
         
-        .users-list::-webkit-scrollbar, .chat-messages::-webkit-scrollbar { width: 4px; }
-        .users-list::-webkit-scrollbar-track, .chat-messages::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 4px; }
-        .users-list::-webkit-scrollbar-thumb, .chat-messages::-webkit-scrollbar-thumb { background: #00d4ff; border-radius: 4px; }
-        
-        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; height: auto; } }
-        
         .toast {
             position: fixed;
             bottom: 20px;
@@ -359,10 +354,13 @@
             z-index: 4000;
             animation: slideIn 0.3s ease;
         }
+        .toast.error { background: #ff4757; color: white; }
         @keyframes slideIn {
             from { transform: translateX(100%); opacity: 0; }
             to { transform: translateX(0); opacity: 1; }
         }
+        
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; height: auto; } }
     </style>
 </head>
 <body>
@@ -433,7 +431,7 @@
             <p id="deleteMessage">Are you sure you want to delete this user?</p>
             <p style="font-size: 12px; color: #ff4757; margin-top: 10px;">This action cannot be undone!</p>
             <div class="modal-buttons">
-                <button class="confirm-btn" onclick="confirmDeleteUser()">Delete</button>
+                <button class="confirm-btn" onclick="confirmDeleteUser()">Delete User</button>
                 <button class="cancel-btn" onclick="closeDeleteModal()">Cancel</button>
             </div>
         </div>
@@ -449,7 +447,7 @@
     <script>
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:5000'
-            : 'https://cryptotrade-pro.onrender.com';
+            : (window.location.origin || 'https://cryptotrade-pro.onrender.com');
         
         console.log('🔗 API URL:', API_URL);
         
@@ -461,21 +459,20 @@
         let currentSearchTerm = '';
         let unreadCounts = {};
         let totalUnreadMessages = 0;
-        let pendingDepositsCount = 0;
-        let pendingWithdrawalsCount = 0;
         let deleteTarget = null;
         
         function showToast(message, isError = false) {
             const toast = document.getElementById('toast');
-            toast.style.backgroundColor = isError ? '#ff4757' : '#00e676';
-            toast.style.color = 'white';
-            toast.innerHTML = message;
+            toast.textContent = message;
+            toast.className = 'toast' + (isError ? ' error' : '');
             toast.style.display = 'block';
             setTimeout(() => { toast.style.display = 'none'; }, 3000);
         }
         
         function checkAdmin() {
-            if (!localStorage.getItem('isAdmin') && !localStorage.getItem('token')) {
+            const token = localStorage.getItem('token');
+            const isAdmin = localStorage.getItem('isAdmin');
+            if (!token && !isAdmin) {
                 window.location.href = 'admin-login.html';
             }
         }
@@ -492,35 +489,28 @@
             document.getElementById('fileInput').value = '';
         }
         
-        function previewImage(file) {
+        async function uploadAdminImage() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+            if (!file || !selectedUserId) {
+                if (!selectedUserId) showToast('Please select a user first', true);
+                return;
+            }
+            if (!file.type.startsWith('image/')) {
+                showToast('Please select an image file', true);
+                return;
+            }
+            if (file.size > 5 * 1024 * 1024) {
+                showToast('Image too large. Max 5MB', true);
+                return;
+            }
+            
             const reader = new FileReader();
             reader.onload = function(e) {
                 document.getElementById('previewImg').src = e.target.result;
                 document.getElementById('imagePreview').style.display = 'block';
             };
             reader.readAsDataURL(file);
-        }
-        
-        async function uploadAdminImage() {
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
-            
-            if (!file || !selectedUserId) {
-                if (!selectedUserId) showToast('Please select a user first', true);
-                return;
-            }
-            
-            if (!file.type.startsWith('image/')) {
-                showToast('Please select an image file', true);
-                return;
-            }
-            
-            if (file.size > 5 * 1024 * 1024) {
-                showToast('Image too large. Max 5MB', true);
-                return;
-            }
-            
-            previewImage(file);
             
             const formData = new FormData();
             formData.append('image', file);
@@ -530,21 +520,16 @@
                     method: 'POST',
                     body: formData
                 });
-                
                 if (response.ok) {
                     const data = await response.json();
                     const imageUrl = fixImageUrl(data.imageUrl);
-                    
                     await fetch(`${API_URL}/api/admin/reply`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: selectedUserId, text: imageUrl, adminName: 'Admin' })
                     });
-                    
                     cancelImage();
                     await loadUserMessages(selectedUserId);
-                    await loadUnreadCounts();
-                    applyFilters();
                     showToast('Image sent successfully!');
                 } else {
                     showToast('Upload failed', true);
@@ -557,7 +542,10 @@
         
         async function loadUsers() {
             try {
-                const response = await fetch(`${API_URL}/api/admin/users-with-status`);
+                const token = localStorage.getItem('token');
+                const response = await fetch(`${API_URL}/api/admin/users-with-status`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
                 if (response.ok) {
                     const data = await response.json();
                     allUsers = data.users || [];
@@ -566,7 +554,7 @@
                     if (fallbackRes.ok) {
                         const fallbackData = await fallbackRes.json();
                         allUsers = fallbackData.users || [];
-                        allUsers.forEach(user => { user.status = 'offline'; user.lastSeen = new Date().toISOString(); });
+                        allUsers.forEach(user => { user.status = 'offline'; });
                     }
                 }
                 await loadUnreadCounts();
@@ -593,60 +581,18 @@
                                 totalUnreadMessages += unreadCount;
                             }
                         }
-                    } catch (e) { console.error(`Error for user ${user.id}:`, e); }
+                    } catch (e) {}
                 }
-                updateChatBadge();
+                const badge = document.getElementById('chatBadge');
+                if (badge) {
+                    if (totalUnreadMessages > 0) {
+                        badge.style.display = 'flex';
+                        badge.innerText = totalUnreadMessages > 99 ? '99+' : totalUnreadMessages;
+                    } else {
+                        badge.style.display = 'none';
+                    }
+                }
             } catch (error) { console.error('Error loading unread counts:', error); }
-        }
-        
-        async function checkPendingDeposits() {
-            try {
-                const response = await fetch(`${API_URL}/api/admin/deposits`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const deposits = data.deposits || [];
-                    pendingDepositsCount = deposits.filter(d => d.status === 'pending').length;
-                    const badge = document.getElementById('depositsBadge');
-                    if (badge) {
-                        if (pendingDepositsCount > 0) {
-                            badge.style.display = 'flex';
-                            badge.innerText = pendingDepositsCount > 99 ? '99+' : pendingDepositsCount;
-                        } else { badge.style.display = 'none'; }
-                    }
-                }
-            } catch (error) { console.error('Error checking deposits:', error); }
-        }
-        
-        async function checkPendingWithdrawals() {
-            try {
-                const response = await fetch(`${API_URL}/api/admin/withdrawals`);
-                if (response.ok) {
-                    const data = await response.json();
-                    const withdrawals = data.withdrawals || [];
-                    pendingWithdrawalsCount = withdrawals.filter(w => w.status === 'pending').length;
-                    const badge = document.getElementById('withdrawalsBadge');
-                    if (badge) {
-                        if (pendingWithdrawalsCount > 0) {
-                            badge.style.display = 'flex';
-                            badge.innerText = pendingWithdrawalsCount > 99 ? '99+' : pendingWithdrawalsCount;
-                        } else { badge.style.display = 'none'; }
-                    }
-                }
-            } catch (error) { console.error('Error checking withdrawals:', error); }
-        }
-        
-        function updateChatBadge() {
-            const badge = document.getElementById('chatBadge');
-            if (badge) {
-                if (totalUnreadMessages > 0) {
-                    badge.style.display = 'flex';
-                    badge.innerText = totalUnreadMessages > 99 ? '99+' : totalUnreadMessages;
-                    document.title = `(${totalUnreadMessages}) Admin Panel`;
-                } else {
-                    badge.style.display = 'none';
-                    document.title = 'Admin Panel';
-                }
-            }
         }
         
         function applyFilters() {
@@ -686,7 +632,7 @@
         
         function showDeleteModal(userId, userName, userEmail) {
             if (userEmail === 'sa@gmail.com') {
-                showToast('Cannot delete main admin account!', true);
+                showToast('Cannot delete the main admin account!', true);
                 return;
             }
             deleteTarget = { id: userId, name: userName };
@@ -701,24 +647,48 @@
         
         async function confirmDeleteUser() {
             if (!deleteTarget) return;
+            
+            showToast(`Deleting user "${deleteTarget.name}"...`);
+            
             try {
-                const response = await fetch(`${API_URL}/api/admin/delete-user/${deleteTarget.id}`, { method: 'DELETE' });
-                const result = await response.json();
+                const token = localStorage.getItem('token');
+                
+                const response = await fetch(`${API_URL}/api/admin/delete-user/${deleteTarget.id}`, {
+                    method: 'DELETE',
+                    headers: { 
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
                 if (response.ok) {
-                    showToast(`✅ ${result.message}`);
+                    const result = await response.json();
+                    showToast(`✅ ${result.message || `User "${deleteTarget.name}" deleted successfully!`}`);
+                    
                     allUsers = allUsers.filter(u => u.id !== deleteTarget.id);
+                    delete unreadCounts[deleteTarget.id];
+                    
                     if (selectedUserId === deleteTarget.id) {
                         selectedUserId = null;
                         selectedUserName = null;
                         document.getElementById('selectedUserName').innerHTML = 'Select a user';
                         document.getElementById('chatMessages').innerHTML = '<div class="no-user-selected"><i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i><p>Select a user to start chatting</p></div>';
+                        document.getElementById('chatInput').disabled = false;
                     }
+                    
                     applyFilters();
                     await loadUnreadCounts();
-                } else { showToast(`❌ Error: ${result.message}`, true); }
+                } else {
+                    let errorMsg = 'Failed to delete user';
+                    try {
+                        const error = await response.json();
+                        errorMsg = error.message || errorMsg;
+                    } catch(e) {}
+                    showToast(`❌ ${errorMsg}`, true);
+                }
             } catch (error) {
                 console.error('Delete error:', error);
-                showToast('Error deleting user', true);
+                showToast(`Error: ${error.message}. Make sure you're logged in as admin.`, true);
             }
             closeDeleteModal();
         }
@@ -737,13 +707,13 @@
             usersDiv.innerHTML = filteredUsers.map(user => {
                 const unread = unreadCounts[user.id] || 0;
                 const isOnline = user.status === 'online';
-                const lastSeen = user.lastSeen ? new Date(user.lastSeen).toLocaleString() : 'Never';
                 const isMainAdmin = user.email === 'sa@gmail.com';
                 return `
                     <div class="user-item ${selectedUserId === user.id ? 'active' : ''}" onclick="selectUser(${user.id}, '${escapeHtml(user.name)}')">
                         <div class="user-name">
-                            <i class="fas ${isMainAdmin ? 'fa-crown' : 'fa-user-circle'}"></i> ${escapeHtml(user.name)}
-                            ${isMainAdmin ? '<span style="color:#ffd700; font-size:11px;">(Admin)</span>' : ''}
+                            <i class="fas ${isMainAdmin ? 'fa-crown' : 'fa-user-circle'}"></i> 
+                            ${escapeHtml(user.name)}
+                            ${isMainAdmin ? '<span style="color:#ffd700; font-size:11px;">(Master Admin)</span>' : ''}
                             <span class="status-indicator ${isOnline ? 'status-online' : 'status-offline'}">
                                 <span class="status-dot ${isOnline ? 'online' : 'offline'}"></span>
                                 ${isOnline ? 'Online' : 'Offline'}
@@ -751,8 +721,7 @@
                             ${unread > 0 ? `<span class="user-unread-count">${unread}</span>` : ''}
                         </div>
                         <div class="user-email">${escapeHtml(user.email)}</div>
-                        <div class="user-balance">💰 Demo: $${user.demoBalance} | Real: $${user.realBalance}</div>
-                        ${!isOnline ? `<div class="last-seen">Last seen: ${lastSeen}</div>` : ''}
+                        <div class="user-balance">💰 Demo: $${(user.demoBalance || 0).toLocaleString()} | Real: $${(user.realBalance || 0).toLocaleString()}</div>
                         ${!isMainAdmin ? `<button class="delete-user-btn" onclick="event.stopPropagation(); showDeleteModal(${user.id}, '${escapeHtml(user.name)}', '${escapeHtml(user.email)}')"><i class="fas fa-trash"></i> Delete</button>` : ''}
                     </div>
                 `;
@@ -787,7 +756,9 @@
                 if (response.ok) {
                     const data = await response.json();
                     displayMessages(data.messages || []);
-                } else { displayMessages([]); }
+                } else {
+                    displayMessages([]);
+                }
             } catch (error) {
                 console.error('Error loading messages:', error);
                 displayMessages([]);
@@ -813,24 +784,35 @@
                    text.includes('/uploads/');
         }
         
+        // ============ FIXED: Messages display with NEWEST AT BOTTOM ============
         function displayMessages(messages) {
             const chatDiv = document.getElementById('chatMessages');
             if (!chatDiv) return;
+            
             if (!messages || messages.length === 0) {
-                chatDiv.innerHTML = '<div class="no-user-selected"><i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i><p>No messages yet</p></div>';
+                chatDiv.innerHTML = '<div class="no-user-selected"><i class="fas fa-comments" style="font-size:48px;opacity:0.3;"></i><p>No messages yet. Start the conversation!</p></div>';
                 return;
             }
+            
+            // Sort messages from OLDEST to NEWEST (oldest first, newest last)
             const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+            
+            // Build HTML with messages in correct order (oldest on top, newest at bottom)
             chatDiv.innerHTML = sortedMessages.map(msg => {
                 let imageUrl = null;
                 let messageText = msg.text;
+                
                 if (msg.hasImage && msg.imageUrl) imageUrl = msg.imageUrl;
-                else if (isImageUrl(msg.text)) { imageUrl = msg.text; messageText = '📷 Image'; }
+                else if (isImageUrl(msg.text)) { 
+                    imageUrl = msg.text; 
+                    messageText = '📷 Image'; 
+                }
+                
                 if (imageUrl) {
                     const fixedUrl = fixImageUrl(imageUrl);
                     return `
                         <div class="chat-message ${msg.sender}">
-                            <div class="message-sender">${msg.sender === 'user' ? selectedUserName : 'Admin (You)'}</div>
+                            <div class="message-sender">${msg.sender === 'user' ? escapeHtml(selectedUserName) : 'Admin (You)'}</div>
                             <div class="message-bubble">
                                 <img src="${fixedUrl}" class="chat-image" onclick="viewImage('${fixedUrl}')" alt="Image" 
                                      onerror="this.onerror=null; this.src='https://via.placeholder.com/200x150?text=Image+Not+Found';">
@@ -839,14 +821,17 @@
                         </div>
                     `;
                 }
+                
                 return `
                     <div class="chat-message ${msg.sender}">
-                        <div class="message-sender">${msg.sender === 'user' ? selectedUserName : 'Admin (You)'}</div>
+                        <div class="message-sender">${msg.sender === 'user' ? escapeHtml(selectedUserName) : 'Admin (You)'}</div>
                         <div class="message-bubble">${escapeHtml(messageText)}</div>
                         <div class="message-time">${new Date(msg.timestamp).toLocaleString()}</div>
                     </div>
                 `;
             }).join('');
+            
+            // Auto-scroll to bottom to show latest message
             chatDiv.scrollTop = chatDiv.scrollHeight;
         }
         
@@ -854,7 +839,7 @@
             const input = document.getElementById('chatInput');
             const text = input ? input.value.trim() : '';
             if (!text || !selectedUserId) {
-                if (!selectedUserId) showToast('Select a user first', true);
+                if (!selectedUserId) showToast('Please select a user first', true);
                 return;
             }
             try {
@@ -868,10 +853,12 @@
                     await loadUserMessages(selectedUserId);
                     await loadUnreadCounts();
                     applyFilters();
-                } else { showToast('Failed to send reply', true); }
+                } else {
+                    showToast('Failed to send reply', true);
+                }
             } catch (error) {
                 console.error('Error sending reply:', error);
-                showToast('Server error', true);
+                showToast('Server error. Could not send message.', true);
             }
         }
         
@@ -885,22 +872,38 @@
         function logout() {
             localStorage.removeItem('isAdmin');
             localStorage.removeItem('token');
-            window.location.href = 'admin-login.html';
+            showToast('Logged out successfully');
+            setTimeout(() => { window.location.href = 'admin-login.html'; }, 500);
         }
         
-        setInterval(() => {
+        // Polling for new messages
+        let pollingInterval = setInterval(() => {
             if (selectedUserId) loadUserMessages(selectedUserId);
-            loadUsers();
-            checkPendingDeposits();
-            checkPendingWithdrawals();
         }, 5000);
         
+        let usersPollingInterval = setInterval(() => {
+            loadUsers();
+        }, 8000);
+        
+        // Initialization
         checkAdmin();
         loadUsers();
-        checkPendingDeposits();
-        checkPendingWithdrawals();
         
-        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeImageViewer(); });
+        document.getElementById('deleteModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('deleteModal')) closeDeleteModal();
+        });
+        document.addEventListener('keydown', (e) => { 
+            if (e.key === 'Escape') { 
+                closeImageViewer(); 
+                closeDeleteModal(); 
+            } 
+        });
+        
+        // Cleanup intervals on page unload
+        window.addEventListener('beforeunload', () => {
+            if (pollingInterval) clearInterval(pollingInterval);
+            if (usersPollingInterval) clearInterval(usersPollingInterval);
+        });
     </script>
 </body>
 </html>
