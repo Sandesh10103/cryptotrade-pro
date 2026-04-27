@@ -78,6 +78,7 @@
 
         button:hover {
             transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,212,255,0.3);
         }
 
         .error {
@@ -85,6 +86,9 @@
             text-align: center;
             margin-top: 15px;
             font-size: 13px;
+            background: rgba(255,71,87,0.1);
+            padding: 10px;
+            border-radius: 8px;
         }
         
         .success {
@@ -92,6 +96,48 @@
             text-align: center;
             margin-top: 15px;
             font-size: 13px;
+            background: rgba(0,230,118,0.1);
+            padding: 10px;
+            border-radius: 8px;
+        }
+
+        .info-box {
+            margin-top: 20px;
+            padding: 12px;
+            background: rgba(0,212,255,0.1);
+            border-radius: 8px;
+            text-align: center;
+            font-size: 12px;
+            color: #8a92b0;
+        }
+
+        .info-box i {
+            color: #00d4ff;
+            margin-right: 5px;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: #00d4ff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -99,22 +145,27 @@
     <div class="login-container">
         <h2>🔐 Admin Login</h2>
         <div class="input-group">
-            <label>Username</label>
-            <input type="text" id="username" placeholder="Enter admin username">
+            <label>Email</label>
+            <input type="email" id="username" placeholder="sa@gmail.com">
         </div>
         <div class="input-group">
             <label>Password</label>
-            <input type="password" id="password" placeholder="Enter admin password" onkeypress="if(event.key==='Enter') adminLogin()">
+            <input type="password" id="password" placeholder="Enter your password" onkeypress="if(event.key==='Enter') adminLogin()">
         </div>
         <button onclick="adminLogin()">Login</button>
+        <div id="loadingMsg" class="loading">
+            <span class="spinner"></span> <span style="margin-left: 8px;">Logging in...</span>
+        </div>
         <div id="errorMsg" class="error"></div>
         <div id="successMsg" class="success"></div>
+        <div class="info-box">
+            <i class="fas fa-info-circle"></i> Use your registered email and password.<br>
+            <strong>sa@gmail.com</strong> has full admin access.
+        </div>
     </div>
 
     <script>
         // ============ API CONFIGURATION ============
-        // This file uses local authentication only
-        // For production, you can connect to backend API if needed
         const API_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:5000'
             : 'https://cryptotrade-pro.onrender.com';
@@ -122,78 +173,84 @@
         console.log('🔗 API URL:', API_URL);
         
         async function adminLogin() {
-            const username = document.getElementById('username').value;
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             
             if (!username || !password) {
-                document.getElementById('errorMsg').innerText = 'Please enter username and password';
+                document.getElementById('errorMsg').innerText = 'Please enter email and password';
+                document.getElementById('successMsg').innerText = '';
                 return;
             }
             
-            // Option 1: Simple local admin check (current method)
-            if (username === 'admin' && password === 'admin123') {
-                localStorage.setItem('isAdmin', 'true');
-                localStorage.setItem('adminName', username);
-                
-                // Show success message
-                document.getElementById('successMsg').innerText = 'Login successful! Redirecting...';
-                document.getElementById('errorMsg').innerText = '';
-                
-                setTimeout(() => {
-                    window.location.href = 'admin.html';
-                }, 1000);
-                return;
-            }
+            // Show loading
+            document.getElementById('loadingMsg').classList.add('active');
+            document.getElementById('errorMsg').innerText = '';
+            document.getElementById('successMsg').innerText = '';
             
-            // Option 2: You can also verify with backend API (uncomment if needed)
-            /*
             try {
-                const response = await fetch(`${API_URL}/api/admin/login`, {
+                // Call the backend login API
+                const response = await fetch(`${API_URL}/api/login`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ email: username, password: password })
                 });
                 
                 const data = await response.json();
                 
                 if (response.ok) {
-                    localStorage.setItem('isAdmin', 'true');
-                    localStorage.setItem('adminName', username);
-                    localStorage.setItem('adminToken', data.token);
+                    // Store the token
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('userEmail', username);
+                    localStorage.setItem('userName', data.user.name);
                     
-                    document.getElementById('successMsg').innerText = 'Login successful! Redirecting...';
-                    document.getElementById('errorMsg').innerText = '';
-                    
-                    setTimeout(() => {
-                        window.location.href = 'admin.html';
-                    }, 1000);
+                    // Check if this user is an admin (sa@gmail.com)
+                    if (username === 'sa@gmail.com') {
+                        localStorage.setItem('isAdmin', 'true');
+                        document.getElementById('successMsg').innerText = '✅ Admin login successful! Redirecting...';
+                        document.getElementById('errorMsg').innerText = '';
+                        
+                        setTimeout(() => {
+                            window.location.href = 'admin.html';
+                        }, 1000);
+                    } else {
+                        // Logged in but not admin
+                        document.getElementById('errorMsg').innerText = '❌ You do not have admin privileges. Only sa@gmail.com can access admin panel.';
+                        document.getElementById('loadingMsg').classList.remove('active');
+                        localStorage.removeItem('token');
+                        localStorage.removeItem('isAdmin');
+                    }
                 } else {
-                    document.getElementById('errorMsg').innerText = data.message || 'Invalid credentials';
-                    document.getElementById('successMsg').innerText = '';
+                    document.getElementById('errorMsg').innerText = data.message || 'Invalid credentials. Please check your email and password.';
+                    document.getElementById('loadingMsg').classList.remove('active');
                 }
             } catch (error) {
                 console.error('Login error:', error);
-                document.getElementById('errorMsg').innerText = 'Server error. Using local login.';
-                // Fallback to local login
-                if (username === 'admin' && password === 'admin123') {
-                    localStorage.setItem('isAdmin', 'true');
-                    localStorage.setItem('adminName', username);
-                    setTimeout(() => {
-                        window.location.href = 'admin.html';
-                    }, 1000);
-                }
+                document.getElementById('errorMsg').innerText = 'Cannot connect to server. Make sure the server is running.';
+                document.getElementById('loadingMsg').classList.remove('active');
             }
-            */
-            
-            // If credentials don't match
-            document.getElementById('errorMsg').innerText = 'Invalid credentials. Use admin / admin123';
-            document.getElementById('successMsg').innerText = '';
         }
         
-        // Check if already logged in
-        if (localStorage.getItem('isAdmin') === 'true') {
-            window.location.href = 'admin.html';
+        // Check if already logged in as admin
+        if (localStorage.getItem('isAdmin') === 'true' && localStorage.getItem('token')) {
+            // Verify token is still valid
+            fetch(`${API_URL}/api/user/data`, {
+                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+            }).then(response => {
+                if (response.ok) {
+                    window.location.href = 'admin.html';
+                } else {
+                    localStorage.removeItem('isAdmin');
+                    localStorage.removeItem('token');
+                }
+            }).catch(() => {
+                localStorage.removeItem('isAdmin');
+                localStorage.removeItem('token');
+            });
         }
+        
+        // Add placeholder hints
+        document.getElementById('username').placeholder = 'sa@gmail.com';
+        document.getElementById('password').placeholder = 'Enter your password';
     </script>
 </body>
 </html>
